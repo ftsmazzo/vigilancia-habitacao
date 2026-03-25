@@ -22,8 +22,15 @@ function parseTipo(especie) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-  if (text.includes("idoso")) return "IDOSO";
-  if (text.includes("deficien") || text.includes("pessoa com deficien")) return "DEFICIENTE";
+  if (text.includes("bpc - idoso") || text.includes("idoso")) return "IDOSO";
+  if (
+    text.includes("pessoa com deficiencia") ||
+    text.includes("deficien") ||
+    text.includes("rmv por invalidez") ||
+    text.includes("invalidez")
+  ) {
+    return "DEFICIENTE";
+  }
   return "OUTRO";
 }
 
