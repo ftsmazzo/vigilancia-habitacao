@@ -20,6 +20,7 @@ const uploadChunk = multer({
   limits: { fileSize: 1024 * 1024 * 10 }
 });
 const uploadSessions = new Map();
+const mesesAtualizacao = Math.max(1, Number(process.env.CADU_ATUALIZACAO_MESES || 24));
 
 function parseBooleanFlag(value) {
   if (value === "1" || value === 1 || String(value).toUpperCase() === "SIM") return true;
@@ -270,7 +271,10 @@ router.post("/upload/finalize", requireAuth, requireRole("MASTER"), async (req, 
 });
 
 router.get("/status", requireAuth, requireRole("MASTER", "ADMIN"), async (_req, res) => {
-  const [totalPessoas, totalFamilias, ultimoImport, dataBaseMax] = await Promise.all([
+  const limiteAtualizacao = new Date();
+  limiteAtualizacao.setMonth(limiteAtualizacao.getMonth() - mesesAtualizacao);
+
+  const [totalPessoas, totalFamilias, ultimoImport, dataBaseMax, familiasComBolsa, familiasAtualizadas, familiasDesatualizadas] = await Promise.all([
     prisma.caduPessoa.count(),
     prisma.caduFamilia.count(),
     prisma.caduRawImport.findFirst({
@@ -279,12 +283,26 @@ router.get("/status", requireAuth, requireRole("MASTER", "ADMIN"), async (_req, 
     }),
     prisma.caduFamilia.aggregate({
       _max: { dataAtualFam: true }
+    }),
+    prisma.caduFamilia.count({ where: { recebePbfFam: true } }),
+    prisma.caduFamilia.count({
+      where: {
+        dataAtualFam: { gte: limiteAtualizacao }
+      }
+    }),
+    prisma.caduFamilia.count({
+      where: {
+        OR: [{ dataAtualFam: { lt: limiteAtualizacao } }, { dataAtualFam: null }]
+      }
     })
   ]);
 
   return res.json({
     totalPessoas,
     totalFamilias,
+    familiasComBolsa,
+    familiasAtualizadas,
+    familiasDesatualizadas,
     dataBaseReferencia: dataBaseMax._max.dataAtualFam || null,
     ultimoUpload: ultimoImport || null
   });

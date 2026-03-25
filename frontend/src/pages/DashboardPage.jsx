@@ -34,6 +34,14 @@ export function DashboardPage({ usuario }) {
     municipio: "Ribeirao Preto",
     numUnidades: ""
   });
+  const [editEmpId, setEditEmpId] = useState("");
+  const [editEmpForm, setEditEmpForm] = useState({
+    nome: "",
+    endereco: "",
+    municipio: "",
+    numUnidades: "",
+    status: "EM_CAPTACAO"
+  });
 
   async function carregarEmpreendimentos() {
     setCarregando(true);
@@ -246,6 +254,46 @@ export function DashboardPage({ usuario }) {
     }
   }
 
+  async function carregarEmpreendimentoEdicao(id) {
+    if (!id) return;
+    try {
+      const { data } = await api.get(`/empreendimentos/${id}`);
+      setEditEmpForm({
+        nome: data.nome || "",
+        endereco: data.endereco || "",
+        municipio: data.municipio || "",
+        numUnidades: data.numUnidades || "",
+        status: data.status || "EM_CAPTACAO"
+      });
+    } catch (_error) {
+      setErro("Falha ao carregar empreendimento para edicao.");
+    }
+  }
+
+  async function salvarEdicaoEmpreendimento(event) {
+    event.preventDefault();
+    if (!editEmpId) return;
+    setErro("");
+    setMensagem("");
+    try {
+      await api.put(`/empreendimentos/${editEmpId}`, {
+        nome: editEmpForm.nome,
+        endereco: editEmpForm.endereco || undefined,
+        municipio: editEmpForm.municipio || undefined,
+        numUnidades: editEmpForm.numUnidades ? Number(editEmpForm.numUnidades) : undefined,
+        status: editEmpForm.status
+      });
+      await carregarEmpreendimentos();
+      await carregarOverview();
+      if (selecionadoId === editEmpId) {
+        await carregarResultadosEMetricas();
+      }
+      setMensagem("Empreendimento atualizado com sucesso.");
+    } catch (_error) {
+      setErro("Falha ao atualizar empreendimento.");
+    }
+  }
+
   const secoes = useMemo(() => {
     const base = [
       { id: "visao-geral", label: "Visao geral" },
@@ -315,10 +363,6 @@ export function DashboardPage({ usuario }) {
               <h3>Ultima base implantada</h3>
               <div className="metrics-grid">
                 <div className="metric-item">
-                  <span>Arquivo</span>
-                  <strong>{caduStatus?.ultimoUpload?.nomeArquivo || "-"}</strong>
-                </div>
-                <div className="metric-item">
                   <span>Data do upload</span>
                   <strong>
                     {caduStatus?.ultimoUpload?.finalizadoEm
@@ -341,6 +385,18 @@ export function DashboardPage({ usuario }) {
                 <div className="metric-item">
                   <span>Total pessoas</span>
                   <strong>{caduStatus?.totalPessoas ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Familias com Bolsa Familia</span>
+                  <strong>{caduStatus?.familiasComBolsa ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Cadastros atualizados</span>
+                  <strong>{caduStatus?.familiasAtualizadas ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Cadastros desatualizados</span>
+                  <strong>{caduStatus?.familiasDesatualizadas ?? 0}</strong>
                 </div>
               </div>
             </section>
@@ -427,6 +483,75 @@ export function DashboardPage({ usuario }) {
                   />
                 </label>
                 <button type="submit">Salvar empreendimento</button>
+              </form>
+            </section>
+
+            <section className="card">
+              <h3>Editar empreendimento</h3>
+              <form className="form" onSubmit={salvarEdicaoEmpreendimento}>
+                <label>
+                  Empreendimento
+                  <select
+                    value={editEmpId}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      setEditEmpId(nextId);
+                      carregarEmpreendimentoEdicao(nextId);
+                    }}
+                  >
+                    <option value="">Selecione...</option>
+                    {itens.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Nome
+                  <input
+                    value={editEmpForm.nome}
+                    onChange={(e) => setEditEmpForm((s) => ({ ...s, nome: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Endereco
+                  <input
+                    value={editEmpForm.endereco}
+                    onChange={(e) => setEditEmpForm((s) => ({ ...s, endereco: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Municipio
+                  <input
+                    value={editEmpForm.municipio}
+                    onChange={(e) => setEditEmpForm((s) => ({ ...s, municipio: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Numero de unidades
+                  <input
+                    value={editEmpForm.numUnidades}
+                    onChange={(e) => setEditEmpForm((s) => ({ ...s, numUnidades: e.target.value }))}
+                    type="number"
+                    min="1"
+                  />
+                </label>
+                <label>
+                  Status
+                  <select
+                    value={editEmpForm.status}
+                    onChange={(e) => setEditEmpForm((s) => ({ ...s, status: e.target.value }))}
+                  >
+                    <option value="EM_CAPTACAO">EM_CAPTACAO</option>
+                    <option value="EM_ANALISE">EM_ANALISE</option>
+                    <option value="CONCLUIDO">CONCLUIDO</option>
+                  </select>
+                </label>
+                <button type="submit" disabled={!editEmpId}>
+                  Salvar alteracoes
+                </button>
               </form>
             </section>
 

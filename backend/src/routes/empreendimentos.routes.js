@@ -12,7 +12,8 @@ const createSchema = z.object({
   nome: z.string().min(3),
   endereco: z.string().optional(),
   municipio: z.string().optional(),
-  numUnidades: z.number().int().positive().optional()
+  numUnidades: z.number().int().positive().optional(),
+  status: z.enum(["EM_CAPTACAO", "EM_ANALISE", "CONCLUIDO"]).optional()
 });
 
 const updateSchema = createSchema.partial();
