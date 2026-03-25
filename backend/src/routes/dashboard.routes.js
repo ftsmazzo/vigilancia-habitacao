@@ -29,10 +29,13 @@ router.get("/overview", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO")
   const preSelecionadosWhere =
     empreendimentoIds.length > 0 ? { empreendimentoId: { in: empreendimentoIds } } : { empreendimentoId: "___none___" };
 
-  const [totalListas, totalPessoasCadu, totalFamiliasCadu, groupedStatus, groupedTotal] = await Promise.all([
+  const [totalListas, totalPessoasCadu, totalFamiliasCadu, totalBpc, totalBpcIdoso, totalBpcDeficiente, groupedStatus, groupedTotal] = await Promise.all([
     prisma.preSelecionado.count({ where: preSelecionadosWhere }),
     prisma.caduPessoa.count(),
     prisma.caduFamilia.count(),
+    prisma.bpcBeneficio.count(),
+    prisma.bpcBeneficio.count({ where: { tipo: "IDOSO" } }),
+    prisma.bpcBeneficio.count({ where: { tipo: "DEFICIENTE" } }),
     prisma.preSelecionado.groupBy({
       by: ["empreendimentoId", "statusVigilancia"],
       where: preSelecionadosWhere,
@@ -84,7 +87,10 @@ router.get("/overview", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO")
       totalEmpreendimentos: empreendimentos.length,
       totalListas,
       totalFamiliasCadu,
-      totalPessoasCadu
+      totalPessoasCadu,
+      totalBpc,
+      totalBpcIdoso,
+      totalBpcDeficiente
     },
     empreendimentos: empreendimentosResumo
   });

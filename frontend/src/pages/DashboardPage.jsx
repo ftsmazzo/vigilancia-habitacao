@@ -541,6 +541,18 @@ export function DashboardPage({ usuario }) {
                 <small>Total de pessoas CADU</small>
                 <strong>{overview?.cards?.totalPessoasCadu ?? 0}</strong>
               </article>
+              <article className="kpi-card">
+                <small>Total BPC</small>
+                <strong>{overview?.cards?.totalBpc ?? 0}</strong>
+              </article>
+              <article className="kpi-card">
+                <small>BPC Idoso</small>
+                <strong>{overview?.cards?.totalBpcIdoso ?? 0}</strong>
+              </article>
+              <article className="kpi-card">
+                <small>BPC Deficiente</small>
+                <strong>{overview?.cards?.totalBpcDeficiente ?? 0}</strong>
+              </article>
             </section>
 
             {metricas ? (
@@ -553,8 +565,10 @@ export function DashboardPage({ usuario }) {
                   <div className="metric-item"><span>Atualizados</span><strong>{metricas.atualizados}</strong></div>
                   <div className="metric-item"><span>Desatualizados</span><strong>{metricas.desatualizados}</strong></div>
                   <div className="metric-item"><span>Beneficiarios PBF</span><strong>{metricas.beneficiariosPbf}</strong></div>
+                  <div className="metric-item"><span>Beneficiarios BPC</span><strong>{metricas.beneficiariosBpc}</strong></div>
                   <div className="metric-item"><span>Cobertura</span><strong>{metricas.percentualCobertura}</strong></div>
                   <div className="metric-item"><span>PBF entre encontrados</span><strong>{metricas.percentualPbfEncontrados}</strong></div>
+                  <div className="metric-item"><span>BPC entre encontrados</span><strong>{metricas.percentualBpcEncontrados}</strong></div>
                 </div>
               </section>
             ) : null}

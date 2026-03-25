@@ -594,10 +594,19 @@ router.get("/:id/metricas", requireAuth, requireRole("MASTER", "ADMIN", "HABITAC
           }
         })
       : 0;
+  const beneficiariosBpc =
+    cpfs.length > 0
+      ? await prisma.bpcBeneficio.count({
+          where: {
+            cpf: { in: cpfs }
+          }
+        })
+      : 0;
 
   const percentualCobertura = totalListados > 0 ? Math.round((encontrados * 100) / totalListados) : 0;
   const percentualDesatualizados = encontrados > 0 ? Math.round((desatualizados * 100) / encontrados) : 0;
   const percentualPbfEncontrados = encontrados > 0 ? Math.round((beneficiariosPbf * 100) / encontrados) : 0;
+  const percentualBpcEncontrados = encontrados > 0 ? Math.round((beneficiariosBpc * 100) / encontrados) : 0;
 
   return res.json({
     totalListados,
@@ -606,9 +615,11 @@ router.get("/:id/metricas", requireAuth, requireRole("MASTER", "ADMIN", "HABITAC
     atualizados,
     desatualizados,
     beneficiariosPbf,
+    beneficiariosBpc,
     percentualCobertura: `${percentualCobertura}%`,
     percentualDesatualizados: `${percentualDesatualizados}%`,
-    percentualPbfEncontrados: `${percentualPbfEncontrados}%`
+    percentualPbfEncontrados: `${percentualPbfEncontrados}%`,
+    percentualBpcEncontrados: `${percentualBpcEncontrados}%`
   });
 });
 

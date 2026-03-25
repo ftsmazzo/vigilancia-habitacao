@@ -18,9 +18,12 @@ function parseDateBr(value) {
 }
 
 function parseTipo(especie) {
-  const text = String(especie || "").toLowerCase();
+  const text = String(especie || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
   if (text.includes("idoso")) return "IDOSO";
-  if (text.includes("deficiente")) return "DEFICIENTE";
+  if (text.includes("deficien") || text.includes("pessoa com deficien")) return "DEFICIENTE";
   return "OUTRO";
 }
 
