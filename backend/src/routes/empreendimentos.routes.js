@@ -263,6 +263,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
   let naoEncontrados = 0;
   let atualizados = 0;
   let desatualizados = 0;
+  let beneficiariosPbf = 0;
 
   for (const ps of pendentes) {
     const pessoa = await prisma.caduPessoa.findUnique({ where: { cpf: ps.cpf } });
@@ -287,6 +288,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
       : null;
 
     const desatualizado = isCadastroDesatualizado(pessoa.dataAtualFam);
+    const recebePbf = Boolean(pessoa.recebePbfFam || pessoa.recebePbfPessoa);
     const statusVigilancia = desatualizado ? "DESATUALIZADO" : "ATUALIZADO";
     const motivoStatus = desatualizado
       ? `Cadastro com mais de ${mesesAtualizacao} meses`
@@ -360,6 +362,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
     });
 
     encontrados += 1;
+    if (recebePbf) beneficiariosPbf += 1;
     if (desatualizado) desatualizados += 1;
     else atualizados += 1;
   }
@@ -374,7 +377,8 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
         encontrados,
         naoEncontrados,
         atualizados,
-        desatualizados
+        desatualizados,
+        beneficiariosPbf
       }
     }
   });
@@ -384,7 +388,8 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
     encontrados,
     naoEncontrados,
     atualizados,
-    desatualizados
+    desatualizados,
+    beneficiariosPbf
   });
 });
 
@@ -453,8 +458,24 @@ router.get("/:id/metricas", requireAuth, requireRole("MASTER", "ADMIN", "HABITAC
   ]);
 
   const encontrados = atualizados + desatualizados;
+  const encontradosCpfs = await prisma.preSelecionado.findMany({
+    where: { empreendimentoId: empreendimento.id, statusCruzamento: "ENCONTRADO" },
+    select: { cpf: true }
+  });
+  const cpfs = encontradosCpfs.map((x) => x.cpf);
+  const beneficiariosPbf =
+    cpfs.length > 0
+      ? await prisma.caduPessoa.count({
+          where: {
+            cpf: { in: cpfs },
+            OR: [{ recebePbfFam: true }, { recebePbfPessoa: true }]
+          }
+        })
+      : 0;
+
   const percentualCobertura = totalListados > 0 ? Math.round((encontrados * 100) / totalListados) : 0;
   const percentualDesatualizados = encontrados > 0 ? Math.round((desatualizados * 100) / encontrados) : 0;
+  const percentualPbfEncontrados = encontrados > 0 ? Math.round((beneficiariosPbf * 100) / encontrados) : 0;
 
   return res.json({
     totalListados,
@@ -462,8 +483,10 @@ router.get("/:id/metricas", requireAuth, requireRole("MASTER", "ADMIN", "HABITAC
     encontrados,
     atualizados,
     desatualizados,
+    beneficiariosPbf,
     percentualCobertura: `${percentualCobertura}%`,
-    percentualDesatualizados: `${percentualDesatualizados}%`
+    percentualDesatualizados: `${percentualDesatualizados}%`,
+    percentualPbfEncontrados: `${percentualPbfEncontrados}%`
   });
 });
 

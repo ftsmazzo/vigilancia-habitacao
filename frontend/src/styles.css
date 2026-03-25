@@ -118,6 +118,7 @@ body {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
 }
 
 .dashboard-grid .card:first-child {
@@ -150,4 +151,63 @@ body {
   border-radius: 8px;
   padding: 10px;
   background: #0b1220;
+}
+
+.dashboard-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+}
+
+.sidebar {
+  background: rgba(15, 23, 42, 0.86);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 16px;
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.sidebar h3 {
+  margin: 0 0 12px;
+  color: #93c5fd;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.sidebar-item {
+  text-align: left;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.sidebar-item.active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.success-text {
+  color: #86efac;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.row-actions button {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
 }
