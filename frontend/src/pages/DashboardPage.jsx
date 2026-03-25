@@ -521,6 +521,7 @@ export function DashboardPage({ usuario }) {
                 <label>
                   Empreendimento
                   <select
+                    className="enhanced-select"
                     value={editEmpId}
                     onChange={(e) => {
                       const nextId = e.target.value;
@@ -570,6 +571,7 @@ export function DashboardPage({ usuario }) {
                 <label>
                   Status
                   <select
+                    className="enhanced-select"
                     value={editEmpForm.status}
                     onChange={(e) => setEditEmpForm((s) => ({ ...s, status: e.target.value }))}
                   >
@@ -612,7 +614,7 @@ export function DashboardPage({ usuario }) {
                 <form className="form" onSubmit={subirLista}>
                   <label>
                     Empreendimento
-                    <select value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
+                    <select className="enhanced-select" value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
                       <option value="">Selecione...</option>
                       {itens.map((item) => (
                         <option key={item.id} value={item.id}>
@@ -655,7 +657,7 @@ export function DashboardPage({ usuario }) {
               <div className="filters-grid">
                 <label>
                   Empreendimento
-                  <select value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
+                  <select className="enhanced-select" value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
                     <option value="">Selecione...</option>
                     {itens.map((item) => (
                       <option key={item.id} value={item.id}>
@@ -667,6 +669,7 @@ export function DashboardPage({ usuario }) {
                 <label>
                   Status
                   <select
+                    className="enhanced-select"
                     value={filtroStatus}
                     onChange={(e) => {
                       setResultadosPage(1);
@@ -682,6 +685,7 @@ export function DashboardPage({ usuario }) {
                 <label>
                   Bolsa Familia
                   <select
+                    className="enhanced-select"
                     value={filtroPbf}
                     onChange={(e) => {
                       setResultadosPage(1);
@@ -778,6 +782,7 @@ export function DashboardPage({ usuario }) {
                 <label>
                   Perfil
                   <select
+                    className="enhanced-select"
                     value={usuarioForm.role}
                     onChange={(e) => setUsuarioForm((s) => ({ ...s, role: e.target.value }))}
                   >
