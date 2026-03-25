@@ -20,6 +20,7 @@ export function DashboardPage({ usuario }) {
   const [metricas, setMetricas] = useState(null);
   const [resultados, setResultados] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [overview, setOverview] = useState(null);
   const [usuarioForm, setUsuarioForm] = useState({
     nome: "",
     email: "",
@@ -49,6 +50,15 @@ export function DashboardPage({ usuario }) {
     }
   }
 
+  async function carregarOverview() {
+    try {
+      const { data } = await api.get("/dashboard/overview");
+      setOverview(data);
+    } catch (_error) {
+      setErro("Falha ao carregar visao geral do dashboard.");
+    }
+  }
+
   async function carregarUsuarios() {
     if (!isMaster) return;
     try {
@@ -62,6 +72,7 @@ export function DashboardPage({ usuario }) {
   useEffect(() => {
     carregarEmpreendimentos();
     carregarUsuarios();
+    carregarOverview();
   }, []);
 
   useEffect(() => {
@@ -81,6 +92,7 @@ export function DashboardPage({ usuario }) {
       });
       setForm({ nome: "", endereco: "", municipio: "Ribeirao Preto", numUnidades: "" });
       await carregarEmpreendimentos();
+      await carregarOverview();
       setMensagem("Empreendimento criado com sucesso.");
     } catch (_error) {
       setErro("Falha ao criar empreendimento.");
@@ -102,6 +114,7 @@ export function DashboardPage({ usuario }) {
       const { data } = await api.post(`/empreendimentos/${selecionadoId}/pre-selecionados/upload`, formData);
       setRetornoUpload(data);
       await carregarResultadosEMetricas();
+      await carregarOverview();
       setMensagem("Lista importada com sucesso.");
     } catch (_error) {
       setErro("Falha no upload da lista.");
@@ -157,6 +170,7 @@ export function DashboardPage({ usuario }) {
       const { data } = await api.post("/cadu/upload/finalize", { uploadId }, { timeout: 1000 * 60 * 40 });
       setRetornoUploadCadu(data);
       setArquivoCadu(null);
+      await carregarOverview();
       setMensagem("Base CADU importada com sucesso.");
     } catch (error) {
       const backendMessage = error?.response?.data?.message;
@@ -184,6 +198,7 @@ export function DashboardPage({ usuario }) {
       const { data } = await api.post(`/empreendimentos/${selecionadoId}/cruzamento`);
       setRetornoCruzamento(data);
       await carregarResultadosEMetricas();
+      await carregarOverview();
       setMensagem("Cruzamento executado com sucesso.");
     } catch (_error) {
       setErro("Falha ao executar cruzamento.");
@@ -283,30 +298,86 @@ export function DashboardPage({ usuario }) {
         ) : null}
 
         {secaoAtiva === "visao-geral" ? (
-          <section className="card">
-            <h3>Visao geral do empreendimento selecionado</h3>
-            <label>
-              Empreendimento
-              <select value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
-                <option value="">Selecione...</option>
-                {itens.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.nome}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <>
+            <section className="card dashboard-hero">
+              <div>
+                <h3>Painel executivo</h3>
+                <p className="muted">Visao geral consolidada do sistema e indicadores principais.</p>
+              </div>
+              <label>
+                Empreendimento em foco
+                <select value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
+                  <option value="">Selecione...</option>
+                  {itens.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+
+            <section className="kpi-grid">
+              <article className="kpi-card">
+                <small>Total de empreendimentos</small>
+                <strong>{overview?.cards?.totalEmpreendimentos ?? 0}</strong>
+              </article>
+              <article className="kpi-card">
+                <small>Total de listas (pre-selecionados)</small>
+                <strong>{overview?.cards?.totalListas ?? 0}</strong>
+              </article>
+              <article className="kpi-card">
+                <small>Total de familias CADU</small>
+                <strong>{overview?.cards?.totalFamiliasCadu ?? 0}</strong>
+              </article>
+              <article className="kpi-card">
+                <small>Total de pessoas CADU</small>
+                <strong>{overview?.cards?.totalPessoasCadu ?? 0}</strong>
+              </article>
+            </section>
+
             {metricas ? (
-              <p className="muted">
-                Total: {metricas.totalListados} | Encontrados: {metricas.encontrados} | Nao encontrados:{" "}
-                {metricas.naoEncontrados} | Atualizados: {metricas.atualizados} | Desatualizados:{" "}
-                {metricas.desatualizados} | PBF: {metricas.beneficiariosPbf} ({metricas.percentualPbfEncontrados}) |
-                Cobertura: {metricas.percentualCobertura}
-              </p>
-            ) : (
-              <p className="muted">Selecione e execute cruzamento para visualizar metricas.</p>
-            )}
-          </section>
+              <section className="card">
+                <h3>Metricas do empreendimento selecionado</h3>
+                <div className="metrics-grid">
+                  <div className="metric-item"><span>Total listados</span><strong>{metricas.totalListados}</strong></div>
+                  <div className="metric-item"><span>Encontrados</span><strong>{metricas.encontrados}</strong></div>
+                  <div className="metric-item"><span>Nao encontrados</span><strong>{metricas.naoEncontrados}</strong></div>
+                  <div className="metric-item"><span>Atualizados</span><strong>{metricas.atualizados}</strong></div>
+                  <div className="metric-item"><span>Desatualizados</span><strong>{metricas.desatualizados}</strong></div>
+                  <div className="metric-item"><span>Beneficiarios PBF</span><strong>{metricas.beneficiariosPbf}</strong></div>
+                  <div className="metric-item"><span>Cobertura</span><strong>{metricas.percentualCobertura}</strong></div>
+                  <div className="metric-item"><span>PBF entre encontrados</span><strong>{metricas.percentualPbfEncontrados}</strong></div>
+                </div>
+              </section>
+            ) : null}
+
+            <section className="card card-span-2">
+              <h3>Empreendimentos e status</h3>
+              {overview?.empreendimentos?.length ? (
+                <div className="list">
+                  {overview.empreendimentos.map((emp) => (
+                    <article className="list-item empreendimento-item" key={emp.id}>
+                      <div>
+                        <strong>{emp.nome}</strong>
+                        <small className="muted">{emp.municipio || "Sem municipio"} · {emp.status}</small>
+                      </div>
+                      <div className="chips">
+                        <span className="chip">Listados: {emp.totalListados}</span>
+                        <span className="chip">Encontrados: {emp.encontrados}</span>
+                        <span className="chip">Nao encontrados: {emp.naoEncontrados}</span>
+                        <span className="chip">Atualizados: {emp.atualizados}</span>
+                        <span className="chip">Desatualizados: {emp.desatualizados}</span>
+                        <span className="chip">Pendentes: {emp.pendentes}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">Nenhum empreendimento para exibir.</p>
+              )}
+            </section>
+          </>
         ) : null}
 
         {secaoAtiva === "empreendimentos" ? (

@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.routes.js";
 import empreendimentosRoutes from "./routes/empreendimentos.routes.js";
 import usuariosRoutes from "./routes/usuarios.routes.js";
 import caduRoutes from "./routes/cadu.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/cadu", caduRoutes);
 app.use("/api/empreendimentos", empreendimentosRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.use((error, _req, res, _next) => {
   if (error?.code === "LIMIT_FILE_SIZE") {
