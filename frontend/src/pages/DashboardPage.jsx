@@ -427,6 +427,10 @@ export function DashboardPage({ usuario }) {
                   <span>Cadastros desatualizados</span>
                   <strong>{caduStatus?.familiasDesatualizadas ?? 0}</strong>
                 </div>
+                <div className="metric-item">
+                  <span>% de atualização cadastral</span>
+                  <strong>{caduStatus?.percentualAtualizacaoCadastral || "0%"}</strong>
+                </div>
               </div>
             </section>
           </>

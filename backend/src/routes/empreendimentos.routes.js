@@ -418,25 +418,37 @@ router.get(
     if (statusVigilancia && ["NAO_ENCONTRADO", "DESATUALIZADO", "ATUALIZADO", "PENDENTE_ANALISE"].includes(statusVigilancia)) {
       where.statusVigilancia = statusVigilancia;
     }
-    if (pbf === "COM_BOLSA" || pbf === "SEM_BOLSA") {
-      const cpfsComBolsaRows = await prisma.caduPessoa.findMany({
-        where: {
-          OR: [{ recebePbfFam: true }, { recebePbfPessoa: true }]
-        },
-        select: { cpf: true }
-      });
-      const cpfsComBolsa = cpfsComBolsaRows.map((x) => x.cpf);
-      if (pbf === "COM_BOLSA") {
-        where.cpf = { in: cpfsComBolsa.length ? cpfsComBolsa : ["__none__"] };
-      } else {
-        where.cpf = { notIn: cpfsComBolsa.length ? cpfsComBolsa : [] };
-      }
-    }
     if (q) {
       where.OR = [
         { nomeInformado: { contains: q, mode: "insensitive" } },
         { cpf: { contains: q } }
       ];
+    }
+
+    if (pbf === "COM_BOLSA" || pbf === "SEM_BOLSA") {
+      const cpfsBaseRows = await prisma.preSelecionado.findMany({
+        where,
+        select: { cpf: true }
+      });
+      const cpfsBase = [...new Set(cpfsBaseRows.map((x) => x.cpf))];
+
+      if (cpfsBase.length === 0) {
+        where.cpf = { in: ["__none__"] };
+      } else {
+        const cpfsComBolsaRows = await prisma.caduPessoa.findMany({
+          where: {
+            cpf: { in: cpfsBase },
+            OR: [{ recebePbfFam: true }, { recebePbfPessoa: true }]
+          },
+          select: { cpf: true }
+        });
+        const cpfsComBolsa = [...new Set(cpfsComBolsaRows.map((x) => x.cpf))];
+        if (pbf === "COM_BOLSA") {
+          where.cpf = { in: cpfsComBolsa.length ? cpfsComBolsa : ["__none__"] };
+        } else {
+          where.cpf = { notIn: cpfsComBolsa.length ? cpfsComBolsa : [] };
+        }
+      }
     }
 
     const page = Math.max(1, Number(req.query.page || 1));

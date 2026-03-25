@@ -303,6 +303,8 @@ router.get("/status", requireAuth, requireRole("MASTER", "ADMIN"), async (_req, 
     familiasComBolsa,
     familiasAtualizadas,
     familiasDesatualizadas,
+    percentualAtualizacaoCadastral:
+      totalFamilias > 0 ? `${Math.round((familiasAtualizadas * 100) / totalFamilias)}%` : "0%",
     dataBaseReferencia: dataBaseMax._max.dataAtualFam || null,
     ultimoUpload: ultimoImport || null
   });
