@@ -7,7 +7,9 @@ export function DashboardPage({ usuario }) {
   const [erro, setErro] = useState("");
   const [selecionadoId, setSelecionadoId] = useState("");
   const [arquivo, setArquivo] = useState(null);
+  const [arquivoCadu, setArquivoCadu] = useState(null);
   const [retornoUpload, setRetornoUpload] = useState(null);
+  const [retornoUploadCadu, setRetornoUploadCadu] = useState(null);
   const [form, setForm] = useState({
     nome: "",
     endereco: "",
@@ -71,6 +73,25 @@ export function DashboardPage({ usuario }) {
     }
   }
 
+  async function subirBaseCadu(event) {
+    event.preventDefault();
+    setErro("");
+    setRetornoUploadCadu(null);
+    if (!arquivoCadu) {
+      setErro("Selecione o CSV da base CADU.");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("arquivo", arquivoCadu);
+      const { data } = await api.post("/cadu/upload", formData);
+      setRetornoUploadCadu(data);
+    } catch (_error) {
+      setErro("Falha no upload da base CADU.");
+    }
+  }
+
   return (
     <div className="dashboard-grid">
       <section className="card">
@@ -79,6 +100,25 @@ export function DashboardPage({ usuario }) {
           Perfil atual: <strong>{usuario?.role}</strong>. O perfil MASTER administra usuarios e acessa todos os dados.
         </p>
       </section>
+
+      {usuario?.role === "MASTER" ? (
+        <section className="card">
+          <h3>Upload base CADU (.csv)</h3>
+          <form className="form" onSubmit={subirBaseCadu}>
+            <label>
+              Arquivo base
+              <input type="file" accept=".csv" onChange={(e) => setArquivoCadu(e.target.files?.[0] || null)} />
+            </label>
+            <button type="submit">Importar base CADU</button>
+          </form>
+          {retornoUploadCadu ? (
+            <p className="muted">
+              Total: {retornoUploadCadu.total} | Inseridos: {retornoUploadCadu.inseridos} | Ignorados CPF invalido:{" "}
+              {retornoUploadCadu.ignoradosCpfInvalido}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="card">
         <h3>Criar empreendimento</h3>
