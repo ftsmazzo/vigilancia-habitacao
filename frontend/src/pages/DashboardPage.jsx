@@ -245,6 +245,7 @@ export function DashboardPage({ usuario }) {
     }
     return base;
   }, [isMaster]);
+  const empreendimentoSelecionado = itens.find((item) => item.id === selecionadoId);
 
   return (
     <div className="dashboard-shell">
@@ -299,13 +300,9 @@ export function DashboardPage({ usuario }) {
 
         {secaoAtiva === "visao-geral" ? (
           <>
-            <section className="card dashboard-hero">
-              <div>
-                <h3>Painel executivo</h3>
-                <p className="muted">Visao geral consolidada do sistema e indicadores principais.</p>
-              </div>
-              <label>
-                Empreendimento em foco
+            <section className="card card-span-2">
+              <h3>Empreendimento em foco</h3>
+              <label className="fit-select">
                 <select value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
                   <option value="">Selecione...</option>
                   {itens.map((item) => (
@@ -323,10 +320,6 @@ export function DashboardPage({ usuario }) {
                 <strong>{overview?.cards?.totalEmpreendimentos ?? 0}</strong>
               </article>
               <article className="kpi-card">
-                <small>Total de listas (pre-selecionados)</small>
-                <strong>{overview?.cards?.totalListas ?? 0}</strong>
-              </article>
-              <article className="kpi-card">
                 <small>Total de familias CADU</small>
                 <strong>{overview?.cards?.totalFamiliasCadu ?? 0}</strong>
               </article>
@@ -337,8 +330,8 @@ export function DashboardPage({ usuario }) {
             </section>
 
             {metricas ? (
-              <section className="card">
-                <h3>Metricas do empreendimento selecionado</h3>
+              <section className="card card-span-2">
+                <h3>Metricas do empreendimento: {empreendimentoSelecionado?.nome || "Sem selecao"}</h3>
                 <div className="metrics-grid">
                   <div className="metric-item"><span>Total listados</span><strong>{metricas.totalListados}</strong></div>
                   <div className="metric-item"><span>Encontrados</span><strong>{metricas.encontrados}</strong></div>
@@ -351,32 +344,6 @@ export function DashboardPage({ usuario }) {
                 </div>
               </section>
             ) : null}
-
-            <section className="card card-span-2">
-              <h3>Empreendimentos e status</h3>
-              {overview?.empreendimentos?.length ? (
-                <div className="list">
-                  {overview.empreendimentos.map((emp) => (
-                    <article className="list-item empreendimento-item" key={emp.id}>
-                      <div>
-                        <strong>{emp.nome}</strong>
-                        <small className="muted">{emp.municipio || "Sem municipio"} · {emp.status}</small>
-                      </div>
-                      <div className="chips">
-                        <span className="chip">Listados: {emp.totalListados}</span>
-                        <span className="chip">Encontrados: {emp.encontrados}</span>
-                        <span className="chip">Nao encontrados: {emp.naoEncontrados}</span>
-                        <span className="chip">Atualizados: {emp.atualizados}</span>
-                        <span className="chip">Desatualizados: {emp.desatualizados}</span>
-                        <span className="chip">Pendentes: {emp.pendentes}</span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted">Nenhum empreendimento para exibir.</p>
-              )}
-            </section>
           </>
         ) : null}
 
