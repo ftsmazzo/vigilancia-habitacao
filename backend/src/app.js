@@ -8,9 +8,20 @@ import empreendimentosRoutes from "./routes/empreendimentos.routes.js";
 
 const app = express();
 
-app.use(cors());
+app.set("trust proxy", 1);
+
+const corsOrigin = process.env.CORS_ORIGIN || "*";
+app.use(cors({ origin: corsOrigin === "*" ? true : corsOrigin }));
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("dev"));
+
+app.get("/", (_req, res) => {
+  return res.json({
+    ok: true,
+    service: "backend-habitacao",
+    docs: "/api/health"
+  });
+});
 
 app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
