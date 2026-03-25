@@ -19,6 +19,12 @@ export function DashboardPage({ usuario }) {
   const [retornoCruzamento, setRetornoCruzamento] = useState(null);
   const [metricas, setMetricas] = useState(null);
   const [resultados, setResultados] = useState([]);
+  const [resultadosPage, setResultadosPage] = useState(1);
+  const [resultadosTotalPages, setResultadosTotalPages] = useState(1);
+  const [resultadosTotal, setResultadosTotal] = useState(0);
+  const [filtroStatus, setFiltroStatus] = useState("TODOS");
+  const [filtroPbf, setFiltroPbf] = useState("TODOS");
+  const [busca, setBusca] = useState("");
   const [usuarios, setUsuarios] = useState([]);
   const [overview, setOverview] = useState(null);
   const [caduStatus, setCaduStatus] = useState(null);
@@ -96,8 +102,13 @@ export function DashboardPage({ usuario }) {
   }, []);
 
   useEffect(() => {
+    setResultadosPage(1);
     carregarResultadosEMetricas();
   }, [selecionadoId]);
+
+  useEffect(() => {
+    carregarResultadosEMetricas({ recarregarMetricas: false });
+  }, [resultadosPage, filtroStatus, filtroPbf]);
 
   async function criarEmpreendimento(event) {
     event.preventDefault();
@@ -141,18 +152,36 @@ export function DashboardPage({ usuario }) {
     }
   }
 
-  async function carregarResultadosEMetricas() {
+  async function carregarResultadosEMetricas({ recarregarMetricas = true } = {}) {
     if (!selecionadoId) return;
     try {
-      const [{ data: metricasResp }, { data: resultadosResp }] = await Promise.all([
-        api.get(`/empreendimentos/${selecionadoId}/metricas`),
-        api.get(`/empreendimentos/${selecionadoId}/cruzamento/resultados?limit=20&page=1`)
-      ]);
-      setMetricas(metricasResp);
+      const params = new URLSearchParams();
+      params.set("limit", "20");
+      params.set("page", String(resultadosPage));
+      if (filtroStatus !== "TODOS") params.set("statusVigilancia", filtroStatus);
+      if (filtroPbf !== "TODOS") params.set("pbf", filtroPbf);
+      if (busca.trim()) params.set("q", busca.trim());
+
+      const requests = [api.get(`/empreendimentos/${selecionadoId}/cruzamento/resultados?${params.toString()}`)];
+      if (recarregarMetricas) requests.push(api.get(`/empreendimentos/${selecionadoId}/metricas`));
+
+      const responses = await Promise.all(requests);
+      const resultadosResp = responses[0].data;
+      if (recarregarMetricas) {
+        setMetricas(responses[1].data);
+      }
       setResultados(resultadosResp.itens || []);
+      setResultadosTotalPages(resultadosResp.totalPages || 1);
+      setResultadosTotal(resultadosResp.total || 0);
     } catch (_error) {
       // silencioso para não quebrar fluxo inicial
     }
+  }
+
+  function aplicarBuscaResultados(event) {
+    event.preventDefault();
+    setResultadosPage(1);
+    carregarResultadosEMetricas({ recarregarMetricas: false });
   }
 
   async function subirBaseCadu(event) {
@@ -577,9 +606,53 @@ export function DashboardPage({ usuario }) {
 
         {secaoAtiva === "listas-cruzamento" ? (
           <>
-            <section className="card">
-              <h3>Upload lista Habitacao (.xls/.xlsx)</h3>
-              <form className="form" onSubmit={subirLista}>
+            <div className="split-grid card-span-2">
+              <section className="card">
+                <h3>Upload da lista para cruzamento</h3>
+                <form className="form" onSubmit={subirLista}>
+                  <label>
+                    Empreendimento
+                    <select value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
+                      <option value="">Selecione...</option>
+                      {itens.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Arquivo
+                    <input type="file" accept=".xls,.xlsx" onChange={(e) => setArquivo(e.target.files?.[0] || null)} />
+                  </label>
+                  <button type="submit">Importar lista</button>
+                </form>
+                {retornoUpload ? (
+                  <p className="muted">
+                    Importados: {retornoUpload.importados} | Ignorados: {retornoUpload.ignorados} | Erros:{" "}
+                    {retornoUpload.erros?.length || 0}
+                  </p>
+                ) : null}
+              </section>
+
+              <section className="card">
+                <h3>Execução do cruzamento</h3>
+                <p className="muted">Após importar a lista, execute o cruzamento para atualizar os indicadores.</p>
+                <button type="button" onClick={executarCruzamento} disabled={!selecionadoId || executandoCruzamento}>
+                  {executandoCruzamento ? "Executando cruzamento..." : "Executar cruzamento"}
+                </button>
+                {retornoCruzamento ? (
+                  <p className="muted">
+                    Cruzados: {retornoCruzamento.total} | Encontrados: {retornoCruzamento.encontrados} | Nao encontrados:{" "}
+                    {retornoCruzamento.naoEncontrados} | PBF: {retornoCruzamento.beneficiariosPbf}
+                  </p>
+                ) : null}
+              </section>
+            </div>
+
+            <section className="card card-span-2">
+              <h3>Resultados do cruzamento</h3>
+              <div className="filters-grid">
                 <label>
                   Empreendimento
                   <select value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
@@ -592,30 +665,43 @@ export function DashboardPage({ usuario }) {
                   </select>
                 </label>
                 <label>
-                  Arquivo
-                  <input type="file" accept=".xls,.xlsx" onChange={(e) => setArquivo(e.target.files?.[0] || null)} />
+                  Status
+                  <select
+                    value={filtroStatus}
+                    onChange={(e) => {
+                      setResultadosPage(1);
+                      setFiltroStatus(e.target.value);
+                    }}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="ATUALIZADO">Atualizado</option>
+                    <option value="DESATUALIZADO">Desatualizado</option>
+                    <option value="NAO_ENCONTRADO">Nao encontrado</option>
+                  </select>
                 </label>
-                <button type="submit">Importar lista</button>
-              </form>
-              {retornoUpload ? (
-                <p className="muted">
-                  Importados: {retornoUpload.importados} | Ignorados: {retornoUpload.ignorados} | Erros:{" "}
-                  {retornoUpload.erros?.length || 0}
-                </p>
-              ) : null}
-              <button type="button" onClick={executarCruzamento} disabled={!selecionadoId || executandoCruzamento}>
-                {executandoCruzamento ? "Executando cruzamento..." : "Executar cruzamento"}
-              </button>
-              {retornoCruzamento ? (
-                <p className="muted">
-                  Cruzados: {retornoCruzamento.total} | Encontrados: {retornoCruzamento.encontrados} | Nao encontrados:{" "}
-                  {retornoCruzamento.naoEncontrados} | PBF: {retornoCruzamento.beneficiariosPbf}
-                </p>
-              ) : null}
-            </section>
+                <label>
+                  Bolsa Familia
+                  <select
+                    value={filtroPbf}
+                    onChange={(e) => {
+                      setResultadosPage(1);
+                      setFiltroPbf(e.target.value);
+                    }}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="COM_BOLSA">Com bolsa</option>
+                    <option value="SEM_BOLSA">Sem bolsa</option>
+                  </select>
+                </label>
+                <form className="filter-search" onSubmit={aplicarBuscaResultados}>
+                  <label>
+                    Busca (nome ou CPF)
+                    <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Digite para buscar" />
+                  </label>
+                  <button type="submit">Filtrar</button>
+                </form>
+              </div>
 
-            <section className="card">
-              <h3>Resultados do cruzamento</h3>
               {resultados.length > 0 ? (
                 <div className="list">
                   {resultados.map((item) => (
@@ -624,7 +710,8 @@ export function DashboardPage({ usuario }) {
                         {item.nomeInformado || "Sem nome"} - {item.cpf}
                       </strong>
                       <small className="muted">
-                        {item.statusVigilancia} · {item.motivoStatus || "Sem observacao"}
+                        {item.statusVigilancia} · {item.motivoStatus || "Sem observacao"} ·{" "}
+                        {item.recebePbf ? "Com Bolsa Familia" : "Sem Bolsa Familia"}
                       </small>
                     </article>
                   ))}
@@ -632,6 +719,27 @@ export function DashboardPage({ usuario }) {
               ) : (
                 <p className="muted">Sem resultados para exibir.</p>
               )}
+              <div className="pagination-row">
+                <small className="muted">
+                  Total filtrado: {resultadosTotal} · Pagina {resultadosPage} de {resultadosTotalPages}
+                </small>
+                <div className="row-actions">
+                  <button
+                    type="button"
+                    disabled={resultadosPage <= 1}
+                    onClick={() => setResultadosPage((p) => Math.max(1, p - 1))}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    disabled={resultadosPage >= resultadosTotalPages}
+                    onClick={() => setResultadosPage((p) => Math.min(resultadosTotalPages, p + 1))}
+                  >
+                    Proxima
+                  </button>
+                </div>
+              </div>
             </section>
           </>
         ) : null}

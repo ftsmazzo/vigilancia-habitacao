@@ -112,6 +112,7 @@ model PreSelecionado {
   statusCruzamento          StatusCruz     @default(PENDENTE)
   statusVigilancia          StatusVigilancia @default(PENDENTE_ANALISE)
   motivoStatus              String?
+  recebePbf                Boolean?
   cruzadoEm                 DateTime?
   dadosCruzados             DadosCruzados?
   criadoEm                  DateTime       @default(now())

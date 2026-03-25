@@ -276,6 +276,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
           statusCruzamento: "NAO_ENCONTRADO",
           statusVigilancia: "NAO_ENCONTRADO",
           motivoStatus: "CPF nao encontrado na base CADU",
+          recebePbf: false,
           cruzadoEm: new Date()
         }
       });
@@ -301,6 +302,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
         statusCruzamento: "ENCONTRADO",
         statusVigilancia,
         motivoStatus,
+        recebePbf: recebePbf,
         cruzadoEm: new Date()
       }
     });
@@ -408,14 +410,31 @@ router.get(
       });
     }
 
+    const statusVigilancia = req.query.statusVigilancia;
+    const pbf = req.query.pbf;
+    const q = String(req.query.q || "").trim();
+
+    const where = { empreendimentoId: empreendimento.id };
+    if (statusVigilancia && ["NAO_ENCONTRADO", "DESATUALIZADO", "ATUALIZADO", "PENDENTE_ANALISE"].includes(statusVigilancia)) {
+      where.statusVigilancia = statusVigilancia;
+    }
+    if (pbf === "COM_BOLSA") where.recebePbf = true;
+    if (pbf === "SEM_BOLSA") where.recebePbf = false;
+    if (q) {
+      where.OR = [
+        { nomeInformado: { contains: q, mode: "insensitive" } },
+        { cpf: { contains: q } }
+      ];
+    }
+
     const page = Math.max(1, Number(req.query.page || 1));
     const limit = Math.min(100, Math.max(1, Number(req.query.limit || 20)));
     const skip = (page - 1) * limit;
 
     const [total, itens] = await Promise.all([
-      prisma.preSelecionado.count({ where: { empreendimentoId: empreendimento.id } }),
+      prisma.preSelecionado.count({ where }),
       prisma.preSelecionado.findMany({
-        where: { empreendimentoId: empreendimento.id },
+        where,
         orderBy: { cruzadoEm: "desc" },
         skip,
         take: limit,
