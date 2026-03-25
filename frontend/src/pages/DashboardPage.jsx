@@ -87,23 +87,31 @@ export function DashboardPage({ usuario }) {
 
     try {
       setEnviandoCadu(true);
-      const formData = new FormData();
-      formData.append("arquivo", arquivoCadu);
-      const { data } = await api.post("/cadu/upload", formData, {
-        timeout: 1000 * 60 * 20,
-        onUploadProgress: (eventProgress) => {
-          if (!eventProgress.total) return;
-          const percentual = Math.round((eventProgress.loaded * 100) / eventProgress.total);
-          setProgressoCadu(percentual);
-        }
-      });
+      const init = await api.post("/cadu/upload/init");
+      const uploadId = init.data.uploadId;
+      const chunkSize = 5 * 1024 * 1024;
+      const totalChunks = Math.ceil(arquivoCadu.size / chunkSize);
+
+      for (let index = 0; index < totalChunks; index += 1) {
+        const start = index * chunkSize;
+        const end = Math.min(arquivoCadu.size, start + chunkSize);
+        const chunk = arquivoCadu.slice(start, end);
+        const formData = new FormData();
+        formData.append("uploadId", uploadId);
+        formData.append("index", String(index));
+        formData.append("totalChunks", String(totalChunks));
+        formData.append("fileName", arquivoCadu.name);
+        formData.append("chunk", chunk, `${arquivoCadu.name}.part${index}`);
+        await api.post("/cadu/upload/chunk", formData, { timeout: 1000 * 60 * 5 });
+        setProgressoCadu(Math.round(((index + 1) * 100) / totalChunks));
+      }
+
+      const { data } = await api.post("/cadu/upload/finalize", { uploadId }, { timeout: 1000 * 60 * 40 });
       setRetornoUploadCadu(data);
       setArquivoCadu(null);
     } catch (error) {
       const backendMessage = error?.response?.data?.message;
-      if (error?.response?.status === 413) {
-        setErro("Arquivo muito grande para o gateway. Precisamos ajustar limite de upload no EasyPanel.");
-      } else if (backendMessage) {
+      if (backendMessage) {
         setErro(`Falha no upload da base CADU: ${backendMessage}`);
       } else {
         setErro("Falha no upload da base CADU.");
@@ -137,8 +145,8 @@ export function DashboardPage({ usuario }) {
           {enviandoCadu ? <p className="muted">Progresso de envio: {progressoCadu}%</p> : null}
           {retornoUploadCadu ? (
             <p className="muted">
-              Total: {retornoUploadCadu.total} | Inseridos: {retornoUploadCadu.inseridos} | Ignorados CPF invalido:{" "}
-              {retornoUploadCadu.ignoradosCpfInvalido}
+              Total: {retornoUploadCadu.total} | Pessoas: {retornoUploadCadu.inseridos} | Familias:{" "}
+              {retornoUploadCadu.familias} | Ignorados CPF invalido: {retornoUploadCadu.ignoradosCpfInvalido}
             </p>
           ) : null}
         </section>

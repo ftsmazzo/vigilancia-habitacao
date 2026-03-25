@@ -1,15 +1,25 @@
 import { Router } from "express";
 import multer from "multer";
-import { parse } from "csv-parse/sync";
+import { parse } from "csv-parse";
+import fs from "node:fs";
+import fsp from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import crypto from "node:crypto";
 import { prisma } from "../utils/prisma.js";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { normalizeCpf } from "../utils/cpf.js";
 
 const router = Router();
-const upload = multer({
+const uploadSingle = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 1024 * 1024 * 512 } // 512MB
+  limits: { fileSize: 1024 * 1024 * 512 }
 });
+const uploadChunk = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1024 * 1024 * 10 }
+});
+const uploadSessions = new Map();
 
 function parseBooleanFlag(value) {
   if (value === "1" || value === 1 || String(value).toUpperCase() === "SIM") return true;
@@ -31,55 +41,62 @@ function parseNumber(value) {
   return Number.isNaN(number) ? null : number;
 }
 
-function chunkArray(items, size) {
-  const chunks = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
-}
-
-router.post("/upload", requireAuth, requireRole("MASTER"), upload.single("arquivo"), async (req, res) => {
-  console.log("Iniciando upload CADU...");
-
-  if (!req.file?.buffer) {
-    return res.status(400).json({
-      error: true,
-      message: "Arquivo CSV obrigatorio",
-      code: "CADU_FILE_REQUIRED"
-    });
-  }
-
-  let records;
-  try {
-    console.log(`Arquivo recebido: ${req.file.originalname} (${req.file.size} bytes)`);
-    records = parse(req.file.buffer, {
-      columns: true,
-      skip_empty_lines: true,
-      delimiter: ";",
-      bom: true,
-      relax_column_count: true,
-      trim: true
-    });
-  } catch (_error) {
-    return res.status(400).json({
-      error: true,
-      message: "CSV invalido",
-      code: "CADU_CSV_INVALID"
-    });
-  }
-
-  console.log(`CSV lido com ${records.length} linhas`);
-
-  const toInsert = [];
-  let ignoradosCpfInvalido = 0;
-
-  for (const row of records) {
-    const cpf = normalizeCpf(row["p.num_cpf_pessoa"]);
-    if (!cpf) {
-      ignoradosCpfInvalido += 1;
-      continue;
+async function processCaduFile({ filePath, fileName, userId }) {
+  const importLog = await prisma.caduRawImport.create({
+    data: {
+      nomeArquivo: fileName,
+      status: "PROCESSANDO",
+      criadoPorId: userId
     }
+  });
+
+  await prisma.preSelecionado.updateMany({
+    data: {
+      statusCruzamento: "PENDENTE",
+      statusVigilancia: "PENDENTE_ANALISE",
+      motivoStatus: "Base CADU atualizada, recross necessario",
+      cruzadoEm: null
+    }
+  });
+  await prisma.dadosCruzados.deleteMany();
+  await prisma.caduRawLinha.deleteMany();
+  await prisma.caduPessoa.deleteMany();
+  await prisma.caduFamilia.deleteMany();
+
+  const stream = fs.createReadStream(filePath, { encoding: "utf8" });
+  const parser = parse({
+    columns: true,
+    skip_empty_lines: true,
+    delimiter: ";",
+    bom: true,
+    relax_column_count: true,
+    trim: true
+  });
+
+  stream.pipe(parser);
+
+  let linhaNumero = 0;
+  let ignoradosCpfInvalido = 0;
+  const rawBatch = [];
+  const pessoasBatch = [];
+  const familiaMap = new Map();
+  const BATCH_SIZE = 1000;
+
+  async function flushBatches() {
+    if (rawBatch.length > 0) {
+      await prisma.caduRawLinha.createMany({ data: rawBatch });
+      rawBatch.length = 0;
+    }
+    if (pessoasBatch.length > 0) {
+      await prisma.caduPessoa.createMany({ data: pessoasBatch, skipDuplicates: true });
+      pessoasBatch.length = 0;
+    }
+  }
+
+  for await (const row of parser) {
+    linhaNumero += 1;
+    const cpf = normalizeCpf(row["p.num_cpf_pessoa"]);
+    if (!cpf) ignoradosCpfInvalido += 1;
 
     const moradiaJson = {
       codEspecieDomicFam: row["d.cod_especie_domic_fam"] || null,
@@ -92,72 +109,180 @@ router.post("/upload", requireAuth, requireRole("MASTER"), upload.single("arquiv
       codBanheiroDomicFam: row["d.cod_banheiro_domic_fam"] || null
     };
 
-    toInsert.push({
-      cpf,
-      nomePessoa: row["p.nom_pessoa"] || null,
-      nisPessoa: row["p.num_nis_pessoa_atual"] || null,
-      codFamiliarFam: row["p.cod_familiar_fam"] || null,
-      dataAtualFam: parseDate(row["d.dat_atual_fam"]),
-      recebePbfFam: parseBooleanFlag(row["d.marc_pbf"]),
-      recebePbfPessoa: parseBooleanFlag(row["p.marc_pbf"]),
-      rendaPerCapitaFam: parseNumber(row["d.vlr_renda_media_fam"]),
-      composicaoFamiliar: parseNumber(row["d.qtd_pessoas_domic_fam"]),
-      moradiaJson,
-      origemRefCad: row["d.ref_cad"] || row["p.ref_cad"] || null
+    const codFamiliarFam = row["d.cod_familiar_fam"] || row["p.cod_familiar_fam"] || null;
+    const rawTxt = JSON.stringify(row);
+    rawBatch.push({
+      importId: importLog.id,
+      linhaNumero,
+      codFamiliarFam,
+      cpfPessoa: cpf,
+      dadosTxt: rawTxt
     });
+
+    if (cpf) {
+      pessoasBatch.push({
+        cpf,
+        nomePessoa: row["p.nom_pessoa"] || null,
+        nisPessoa: row["p.num_nis_pessoa_atual"] || null,
+        codFamiliarFam,
+        dataAtualFam: parseDate(row["d.dat_atual_fam"]),
+        recebePbfFam: parseBooleanFlag(row["d.marc_pbf"]),
+        recebePbfPessoa: parseBooleanFlag(row["p.marc_pbf"]),
+        rendaPerCapitaFam: parseNumber(row["d.vlr_renda_media_fam"]),
+        composicaoFamiliar: parseNumber(row["d.qtd_pessoas_domic_fam"]),
+        moradiaJson,
+        origemRefCad: row["d.ref_cad"] || row["p.ref_cad"] || null
+      });
+    }
+
+    if (codFamiliarFam) {
+      familiaMap.set(codFamiliarFam, {
+        codFamiliarFam,
+        dataAtualFam: parseDate(row["d.dat_atual_fam"]),
+        rendaPerCapitaFam: parseNumber(row["d.vlr_renda_media_fam"]),
+        composicaoFamiliar: parseNumber(row["d.qtd_pessoas_domic_fam"]),
+        recebePbfFam: parseBooleanFlag(row["d.marc_pbf"]),
+        municipio: row["d.nom_localidade_fam"] || null,
+        endereco: row["d.nom_logradouro_fam"] || null,
+        rawDadosTxt: rawTxt
+      });
+    }
+
+    if (rawBatch.length >= BATCH_SIZE || pessoasBatch.length >= BATCH_SIZE) {
+      await flushBatches();
+    }
   }
 
-  await prisma.preSelecionado.updateMany({
-    data: {
-      statusCruzamento: "PENDENTE",
-      statusVigilancia: "PENDENTE_ANALISE",
-      motivoStatus: "Base CADU atualizada, recross necessario",
-      cruzadoEm: null
-    }
-  });
+  await flushBatches();
 
-  await prisma.dadosCruzados.deleteMany();
-  await prisma.caduPessoa.deleteMany();
-
-  const chunks = chunkArray(toInsert, 2000);
-  for (const chunk of chunks) {
-    await prisma.caduPessoa.createMany({
-      data: chunk,
+  const familias = Array.from(familiaMap.values());
+  for (let i = 0; i < familias.length; i += BATCH_SIZE) {
+    await prisma.caduFamilia.createMany({
+      data: familias.slice(i, i + BATCH_SIZE),
       skipDuplicates: true
     });
   }
 
+  await prisma.caduRawImport.update({
+    where: { id: importLog.id },
+    data: {
+      status: "CONCLUIDO",
+      totalLinhas: linhaNumero,
+      finalizadoEm: new Date()
+    }
+  });
+
   await prisma.logAuditoria.create({
     data: {
-      usuarioId: req.user.sub,
+      usuarioId: userId,
       acao: "UPLOAD_CADU",
       detalhes: {
-        totalLinhas: records.length,
-        importados: toInsert.length,
+        totalLinhas: linhaNumero,
+        importadosPessoas: await prisma.caduPessoa.count(),
+        importadosFamilias: await prisma.caduFamilia.count(),
         ignoradosCpfInvalido
       }
     }
   });
 
-  return res.json({
-    total: records.length,
-    inseridos: toInsert.length,
+  return {
+    importId: importLog.id,
+    total: linhaNumero,
+    inseridos: await prisma.caduPessoa.count(),
+    familias: await prisma.caduFamilia.count(),
     atualizados: 0,
     erros: 0,
     ignoradosCpfInvalido
+  };
+}
+
+router.post("/upload", requireAuth, requireRole("MASTER"), uploadSingle.single("arquivo"), async (req, res) => {
+  if (!req.file?.buffer) {
+    return res.status(400).json({ error: true, message: "Arquivo CSV obrigatorio", code: "CADU_FILE_REQUIRED" });
+  }
+
+  const tempPath = path.join(os.tmpdir(), `cadu-upload-${Date.now()}-${crypto.randomUUID()}.csv`);
+  await fsp.writeFile(tempPath, req.file.buffer);
+  const result = await processCaduFile({ filePath: tempPath, fileName: req.file.originalname, userId: req.user.sub });
+  await fsp.unlink(tempPath).catch(() => {});
+  return res.json(result);
+});
+
+router.post("/upload/init", requireAuth, requireRole("MASTER"), async (_req, res) => {
+  const uploadId = crypto.randomUUID();
+  const tempPath = path.join(os.tmpdir(), `cadu-chunk-${uploadId}.csv`);
+  uploadSessions.set(uploadId, { tempPath, expectedIndex: 0, totalChunks: 0, fileName: "upload.csv" });
+  await fsp.writeFile(tempPath, "");
+  return res.json({ uploadId });
+});
+
+router.post("/upload/chunk", requireAuth, requireRole("MASTER"), uploadChunk.single("chunk"), async (req, res) => {
+  const { uploadId, index, totalChunks, fileName } = req.body;
+  const session = uploadSessions.get(uploadId);
+  if (!session) {
+    return res.status(400).json({ error: true, message: "Sessao de upload invalida", code: "CADU_UPLOAD_INVALID" });
+  }
+  if (!req.file?.buffer) {
+    return res.status(400).json({ error: true, message: "Chunk ausente", code: "CADU_CHUNK_REQUIRED" });
+  }
+
+  const idx = Number(index);
+  if (!Number.isInteger(idx) || idx !== session.expectedIndex) {
+    return res.status(409).json({
+      error: true,
+      message: `Ordem de chunk invalida. Esperado ${session.expectedIndex}, recebido ${index}`,
+      code: "CADU_CHUNK_ORDER_INVALID"
+    });
+  }
+
+  session.totalChunks = Number(totalChunks) || session.totalChunks;
+  session.fileName = fileName || session.fileName;
+  await fsp.appendFile(session.tempPath, req.file.buffer);
+  session.expectedIndex += 1;
+  uploadSessions.set(uploadId, session);
+
+  return res.json({ ok: true, received: idx + 1, totalChunks: session.totalChunks });
+});
+
+router.post("/upload/finalize", requireAuth, requireRole("MASTER"), async (req, res) => {
+  const { uploadId } = req.body || {};
+  const session = uploadSessions.get(uploadId);
+  if (!session) {
+    return res.status(400).json({ error: true, message: "Sessao de upload invalida", code: "CADU_UPLOAD_INVALID" });
+  }
+  if (session.totalChunks > 0 && session.expectedIndex !== session.totalChunks) {
+    return res.status(409).json({
+      error: true,
+      message: `Upload incompleto (${session.expectedIndex}/${session.totalChunks})`,
+      code: "CADU_UPLOAD_INCOMPLETE"
+    });
+  }
+
+  const result = await processCaduFile({
+    filePath: session.tempPath,
+    fileName: session.fileName || "upload.csv",
+    userId: req.user.sub
   });
+
+  await fsp.unlink(session.tempPath).catch(() => {});
+  uploadSessions.delete(uploadId);
+  return res.json(result);
 });
 
 router.get("/status", requireAuth, requireRole("MASTER", "ADMIN"), async (_req, res) => {
-  const total = await prisma.caduPessoa.count();
-  const ultimo = await prisma.caduPessoa.findFirst({
-    orderBy: { importadoEm: "desc" },
-    select: { importadoEm: true }
-  });
+  const [totalPessoas, totalFamilias, ultimoImport] = await Promise.all([
+    prisma.caduPessoa.count(),
+    prisma.caduFamilia.count(),
+    prisma.caduRawImport.findFirst({
+      orderBy: { criadoEm: "desc" },
+      select: { criadoEm: true, finalizadoEm: true, totalLinhas: true, status: true, id: true }
+    })
+  ]);
 
   return res.json({
-    totalRegistros: total,
-    ultimoUploadEm: ultimo?.importadoEm || null
+    totalPessoas,
+    totalFamilias,
+    ultimoUpload: ultimoImport || null
   });
 });
 

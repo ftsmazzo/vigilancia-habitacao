@@ -60,6 +60,44 @@ model CaduPessoa {
   atualizadoEm       DateTime @updatedAt
 }
 
+model CaduFamilia {
+  id                 String   @id @default(uuid())
+  codFamiliarFam     String   @unique
+  dataAtualFam       DateTime?
+  rendaPerCapitaFam  Decimal?
+  composicaoFamiliar Int?
+  recebePbfFam       Boolean?
+  municipio          String?
+  endereco           String?
+  rawDadosTxt        String?
+  importadoEm        DateTime @default(now())
+  atualizadoEm       DateTime @updatedAt
+}
+
+model CaduRawImport {
+  id           String   @id @default(uuid())
+  nomeArquivo  String
+  status       String
+  totalLinhas  Int      @default(0)
+  criadoPorId  String?
+  criadoEm     DateTime @default(now())
+  finalizadoEm DateTime?
+}
+
+model CaduRawLinha {
+  id             String   @id @default(uuid())
+  importId       String
+  linhaNumero    Int
+  codFamiliarFam String?
+  cpfPessoa      String?
+  dadosTxt       String
+  criadoEm       DateTime @default(now())
+
+  @@index([importId])
+  @@index([codFamiliarFam])
+  @@index([cpfPessoa])
+}
+
 model PreSelecionado {
   id                        String         @id @default(uuid())
   empreendimentoId          String
