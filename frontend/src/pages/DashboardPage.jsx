@@ -12,6 +12,10 @@ export function DashboardPage({ usuario }) {
   const [retornoUploadCadu, setRetornoUploadCadu] = useState(null);
   const [enviandoCadu, setEnviandoCadu] = useState(false);
   const [progressoCadu, setProgressoCadu] = useState(0);
+  const [executandoCruzamento, setExecutandoCruzamento] = useState(false);
+  const [retornoCruzamento, setRetornoCruzamento] = useState(null);
+  const [metricas, setMetricas] = useState(null);
+  const [resultados, setResultados] = useState([]);
   const [form, setForm] = useState({
     nome: "",
     endereco: "",
@@ -38,6 +42,10 @@ export function DashboardPage({ usuario }) {
   useEffect(() => {
     carregarEmpreendimentos();
   }, []);
+
+  useEffect(() => {
+    carregarResultadosEMetricas();
+  }, [selecionadoId]);
 
   async function criarEmpreendimento(event) {
     event.preventDefault();
@@ -70,8 +78,23 @@ export function DashboardPage({ usuario }) {
       formData.append("arquivo", arquivo);
       const { data } = await api.post(`/empreendimentos/${selecionadoId}/pre-selecionados/upload`, formData);
       setRetornoUpload(data);
+      await carregarResultadosEMetricas();
     } catch (_error) {
       setErro("Falha no upload da lista.");
+    }
+  }
+
+  async function carregarResultadosEMetricas() {
+    if (!selecionadoId) return;
+    try {
+      const [{ data: metricasResp }, { data: resultadosResp }] = await Promise.all([
+        api.get(`/empreendimentos/${selecionadoId}/metricas`),
+        api.get(`/empreendimentos/${selecionadoId}/cruzamento/resultados?limit=20&page=1`)
+      ]);
+      setMetricas(metricasResp);
+      setResultados(resultadosResp.itens || []);
+    } catch (_error) {
+      // silencioso para não quebrar fluxo inicial
     }
   }
 
@@ -118,6 +141,26 @@ export function DashboardPage({ usuario }) {
       }
     } finally {
       setEnviandoCadu(false);
+    }
+  }
+
+  async function executarCruzamento() {
+    if (!selecionadoId) {
+      setErro("Selecione um empreendimento para cruzar.");
+      return;
+    }
+    setErro("");
+    setExecutandoCruzamento(true);
+    setRetornoCruzamento(null);
+
+    try {
+      const { data } = await api.post(`/empreendimentos/${selecionadoId}/cruzamento`);
+      setRetornoCruzamento(data);
+      await carregarResultadosEMetricas();
+    } catch (_error) {
+      setErro("Falha ao executar cruzamento.");
+    } finally {
+      setExecutandoCruzamento(false);
     }
   }
 
@@ -206,6 +249,15 @@ export function DashboardPage({ usuario }) {
             {retornoUpload.erros?.length || 0}
           </p>
         ) : null}
+        <button type="button" onClick={executarCruzamento} disabled={!selecionadoId || executandoCruzamento}>
+          {executandoCruzamento ? "Executando cruzamento..." : "Executar cruzamento"}
+        </button>
+        {retornoCruzamento ? (
+          <p className="muted">
+            Cruzados: {retornoCruzamento.total} | Encontrados: {retornoCruzamento.encontrados} | Nao encontrados:{" "}
+            {retornoCruzamento.naoEncontrados}
+          </p>
+        ) : null}
       </section>
 
       <section className="card">
@@ -225,6 +277,34 @@ export function DashboardPage({ usuario }) {
           </div>
         ) : null}
         {erro ? <p className="error-text">{erro}</p> : null}
+      </section>
+
+      <section className="card">
+        <h3>Metricas e resultados ({selecionadoId ? "empreendimento selecionado" : "selecione um empreendimento"})</h3>
+        {metricas ? (
+          <p className="muted">
+            Total: {metricas.totalListados} | Encontrados: {metricas.encontrados} | Nao encontrados:{" "}
+            {metricas.naoEncontrados} | Atualizados: {metricas.atualizados} | Desatualizados:{" "}
+            {metricas.desatualizados} | Cobertura: {metricas.percentualCobertura}
+          </p>
+        ) : (
+          <p className="muted">Execute o cruzamento para gerar metricas.</p>
+        )}
+
+        {resultados.length > 0 ? (
+          <div className="list">
+            {resultados.map((item) => (
+              <article className="list-item" key={item.id}>
+                <strong>{item.nomeInformado || "Sem nome"} - {item.cpf}</strong>
+                <small className="muted">
+                  {item.statusVigilancia} · {item.motivoStatus || "Sem observacao"}
+                </small>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="muted">Sem resultados para exibir.</p>
+        )}
       </section>
     </div>
   );

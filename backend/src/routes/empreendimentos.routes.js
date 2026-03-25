@@ -16,6 +16,7 @@ const createSchema = z.object({
 });
 
 const updateSchema = createSchema.partial();
+const mesesAtualizacao = Math.max(1, Number(process.env.CADU_ATUALIZACAO_MESES || 24));
 
 function empreendimentoScopeFilter(req) {
   if (req.user.role === "HABITACAO") {
@@ -27,6 +28,14 @@ function empreendimentoScopeFilter(req) {
 async function getEmpreendimentoByScope(req, id) {
   const where = { id, ...empreendimentoScopeFilter(req) };
   return prisma.empreendimento.findFirst({ where });
+}
+
+function isCadastroDesatualizado(dataAtualFam) {
+  if (!dataAtualFam) return true;
+  const hoje = new Date();
+  const limite = new Date(hoje);
+  limite.setMonth(limite.getMonth() - mesesAtualizacao);
+  return dataAtualFam < limite;
 }
 
 router.get("/", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
@@ -232,6 +241,229 @@ router.get("/:id/pre-selecionados", requireAuth, requireRole("MASTER", "ADMIN", 
     total,
     totalPages: Math.ceil(total / limit),
     itens
+  });
+});
+
+router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
+  const empreendimento = await getEmpreendimentoByScope(req, req.params.id);
+  if (!empreendimento) {
+    return res.status(404).json({
+      error: true,
+      message: "Empreendimento nao encontrado",
+      code: "EMPREENDIMENTO_NOT_FOUND"
+    });
+  }
+
+  const pendentes = await prisma.preSelecionado.findMany({
+    where: { empreendimentoId: empreendimento.id },
+    orderBy: { criadoEm: "asc" }
+  });
+
+  let encontrados = 0;
+  let naoEncontrados = 0;
+  let atualizados = 0;
+  let desatualizados = 0;
+
+  for (const ps of pendentes) {
+    const pessoa = await prisma.caduPessoa.findUnique({ where: { cpf: ps.cpf } });
+
+    if (!pessoa) {
+      await prisma.preSelecionado.update({
+        where: { id: ps.id },
+        data: {
+          statusCruzamento: "NAO_ENCONTRADO",
+          statusVigilancia: "NAO_ENCONTRADO",
+          motivoStatus: "CPF nao encontrado na base CADU",
+          cruzadoEm: new Date()
+        }
+      });
+      await prisma.dadosCruzados.deleteMany({ where: { preSelecionadoId: ps.id } });
+      naoEncontrados += 1;
+      continue;
+    }
+
+    const familia = pessoa.codFamiliarFam
+      ? await prisma.caduFamilia.findUnique({ where: { codFamiliarFam: pessoa.codFamiliarFam } })
+      : null;
+
+    const desatualizado = isCadastroDesatualizado(pessoa.dataAtualFam);
+    const statusVigilancia = desatualizado ? "DESATUALIZADO" : "ATUALIZADO";
+    const motivoStatus = desatualizado
+      ? `Cadastro com mais de ${mesesAtualizacao} meses`
+      : "Cadastro atualizado";
+
+    await prisma.preSelecionado.update({
+      where: { id: ps.id },
+      data: {
+        statusCruzamento: "ENCONTRADO",
+        statusVigilancia,
+        motivoStatus,
+        cruzadoEm: new Date()
+      }
+    });
+
+    await prisma.dadosCruzados.upsert({
+      where: { preSelecionadoId: ps.id },
+      update: {
+        camposCADU: {
+          pessoa: {
+            cpf: pessoa.cpf,
+            nomePessoa: pessoa.nomePessoa,
+            nisPessoa: pessoa.nisPessoa,
+            dataAtualFam: pessoa.dataAtualFam,
+            recebePbfFam: pessoa.recebePbfFam,
+            recebePbfPessoa: pessoa.recebePbfPessoa,
+            rendaPerCapitaFam: pessoa.rendaPerCapitaFam,
+            composicaoFamiliar: pessoa.composicaoFamiliar,
+            codFamiliarFam: pessoa.codFamiliarFam
+          },
+          familia: familia
+            ? {
+                codFamiliarFam: familia.codFamiliarFam,
+                dataAtualFam: familia.dataAtualFam,
+                rendaPerCapitaFam: familia.rendaPerCapitaFam,
+                composicaoFamiliar: familia.composicaoFamiliar,
+                recebePbfFam: familia.recebePbfFam,
+                municipio: familia.municipio,
+                endereco: familia.endereco
+              }
+            : null
+        }
+      },
+      create: {
+        preSelecionadoId: ps.id,
+        camposCADU: {
+          pessoa: {
+            cpf: pessoa.cpf,
+            nomePessoa: pessoa.nomePessoa,
+            nisPessoa: pessoa.nisPessoa,
+            dataAtualFam: pessoa.dataAtualFam,
+            recebePbfFam: pessoa.recebePbfFam,
+            recebePbfPessoa: pessoa.recebePbfPessoa,
+            rendaPerCapitaFam: pessoa.rendaPerCapitaFam,
+            composicaoFamiliar: pessoa.composicaoFamiliar,
+            codFamiliarFam: pessoa.codFamiliarFam
+          },
+          familia: familia
+            ? {
+                codFamiliarFam: familia.codFamiliarFam,
+                dataAtualFam: familia.dataAtualFam,
+                rendaPerCapitaFam: familia.rendaPerCapitaFam,
+                composicaoFamiliar: familia.composicaoFamiliar,
+                recebePbfFam: familia.recebePbfFam,
+                municipio: familia.municipio,
+                endereco: familia.endereco
+              }
+            : null
+        }
+      }
+    });
+
+    encontrados += 1;
+    if (desatualizado) desatualizados += 1;
+    else atualizados += 1;
+  }
+
+  await prisma.logAuditoria.create({
+    data: {
+      usuarioId: req.user.sub,
+      acao: "CRUZAMENTO_EXECUTADO",
+      detalhes: {
+        empreendimentoId: empreendimento.id,
+        total: pendentes.length,
+        encontrados,
+        naoEncontrados,
+        atualizados,
+        desatualizados
+      }
+    }
+  });
+
+  return res.json({
+    total: pendentes.length,
+    encontrados,
+    naoEncontrados,
+    atualizados,
+    desatualizados
+  });
+});
+
+router.get(
+  "/:id/cruzamento/resultados",
+  requireAuth,
+  requireRole("MASTER", "ADMIN", "HABITACAO"),
+  async (req, res) => {
+    const empreendimento = await getEmpreendimentoByScope(req, req.params.id);
+    if (!empreendimento) {
+      return res.status(404).json({
+        error: true,
+        message: "Empreendimento nao encontrado",
+        code: "EMPREENDIMENTO_NOT_FOUND"
+      });
+    }
+
+    const page = Math.max(1, Number(req.query.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 20)));
+    const skip = (page - 1) * limit;
+
+    const [total, itens] = await Promise.all([
+      prisma.preSelecionado.count({ where: { empreendimentoId: empreendimento.id } }),
+      prisma.preSelecionado.findMany({
+        where: { empreendimentoId: empreendimento.id },
+        orderBy: { cruzadoEm: "desc" },
+        skip,
+        take: limit,
+        include: {
+          dadosCruzados: true
+        }
+      })
+    ]);
+
+    return res.json({
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      itens
+    });
+  }
+);
+
+router.get("/:id/metricas", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
+  const empreendimento = await getEmpreendimentoByScope(req, req.params.id);
+  if (!empreendimento) {
+    return res.status(404).json({
+      error: true,
+      message: "Empreendimento nao encontrado",
+      code: "EMPREENDIMENTO_NOT_FOUND"
+    });
+  }
+
+  const [totalListados, naoEncontrados, atualizados, desatualizados] = await Promise.all([
+    prisma.preSelecionado.count({ where: { empreendimentoId: empreendimento.id } }),
+    prisma.preSelecionado.count({
+      where: { empreendimentoId: empreendimento.id, statusVigilancia: "NAO_ENCONTRADO" }
+    }),
+    prisma.preSelecionado.count({
+      where: { empreendimentoId: empreendimento.id, statusVigilancia: "ATUALIZADO" }
+    }),
+    prisma.preSelecionado.count({
+      where: { empreendimentoId: empreendimento.id, statusVigilancia: "DESATUALIZADO" }
+    })
+  ]);
+
+  const encontrados = atualizados + desatualizados;
+  const percentualCobertura = totalListados > 0 ? Math.round((encontrados * 100) / totalListados) : 0;
+  const percentualDesatualizados = encontrados > 0 ? Math.round((desatualizados * 100) / encontrados) : 0;
+
+  return res.json({
+    totalListados,
+    naoEncontrados,
+    encontrados,
+    atualizados,
+    desatualizados,
+    percentualCobertura: `${percentualCobertura}%`,
+    percentualDesatualizados: `${percentualDesatualizados}%`
   });
 });
 
