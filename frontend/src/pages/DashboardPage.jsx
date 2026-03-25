@@ -35,6 +35,25 @@ export function DashboardPage({ usuario }) {
   const [overview, setOverview] = useState(null);
   const [caduStatus, setCaduStatus] = useState(null);
   const [bpcStatus, setBpcStatus] = useState(null);
+  const [exportandoRelatorio, setExportandoRelatorio] = useState(false);
+  const [relatorioFiltros, setRelatorioFiltros] = useState({
+    empreendimentoId: "",
+    statusVigilancia: "TODOS",
+    pbf: "TODOS",
+    bpc: "TODOS",
+    bpcTipo: "TODOS",
+    q: ""
+  });
+  const [relatorioColunas, setRelatorioColunas] = useState([
+    "empreendimento",
+    "nomeInformado",
+    "cpf",
+    "statusVigilancia",
+    "caduDataAtualFam",
+    "recebePbf",
+    "recebeBpc",
+    "tipoBpc"
+  ]);
   const [usuarioForm, setUsuarioForm] = useState({
     nome: "",
     email: "",
@@ -372,13 +391,79 @@ export function DashboardPage({ usuario }) {
       { id: "empreendimentos", label: "Empreendimentos" },
       { id: "listas-cruzamento", label: "Listas e cruzamento" }
     ];
+    if (canOperate) {
+      base.push({ id: "relatorios", label: "Relatorios" });
+    }
     if (isMaster) {
       base.splice(1, 0, { id: "base-cadu", label: "Base CADU" });
       base.push({ id: "usuarios", label: "Usuarios" });
     }
     return base;
-  }, [isMaster]);
+  }, [isMaster, canOperate]);
   const empreendimentoSelecionado = itens.find((item) => item.id === selecionadoId);
+  const opcoesColunasRelatorio = [
+    { key: "empreendimento", label: "Empreendimento" },
+    { key: "nomeInformado", label: "Nome informado (lista)" },
+    { key: "cpf", label: "CPF" },
+    { key: "nisInformado", label: "NIS informado (lista)" },
+    { key: "contato", label: "Contato (lista)" },
+    { key: "statusVigilancia", label: "Status vigilancia" },
+    { key: "motivoStatus", label: "Motivo status" },
+    { key: "dataAtualizacaoInscricao", label: "Data atualizacao inscricao" },
+    { key: "cruzadoEm", label: "Data do cruzamento" },
+    { key: "caduNome", label: "Nome CADU" },
+    { key: "caduNis", label: "NIS CADU" },
+    { key: "caduDataAtualFam", label: "Data atualizacao CADU" },
+    { key: "recebePbf", label: "Recebe Bolsa Familia" },
+    { key: "recebeBpc", label: "Recebe BPC" },
+    { key: "tipoBpc", label: "Tipo BPC" }
+  ];
+
+  function alternarColunaRelatorio(coluna) {
+    setRelatorioColunas((prev) => {
+      if (prev.includes(coluna)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((item) => item !== coluna);
+      }
+      return [...prev, coluna];
+    });
+  }
+
+  async function exportarRelatorioXlsx(event) {
+    event.preventDefault();
+    setErro("");
+    setMensagem("");
+    try {
+      setExportandoRelatorio(true);
+      const payload = {
+        ...relatorioFiltros,
+        empreendimentoId: relatorioFiltros.empreendimentoId || undefined,
+        q: relatorioFiltros.q || undefined,
+        columns: relatorioColunas
+      };
+      const response = await api.post("/relatorios/export-xlsx", payload, {
+        responseType: "blob"
+      });
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const nomeArquivo = `relatorio-vigilancia-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.href = url;
+      link.download = nomeArquivo;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setMensagem("Relatorio XLSX gerado com sucesso.");
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      setErro(backendMessage || "Falha ao gerar relatorio XLSX.");
+    } finally {
+      setExportandoRelatorio(false);
+    }
+  }
 
   return (
     <div className="dashboard-shell">
@@ -973,6 +1058,108 @@ export function DashboardPage({ usuario }) {
               )}
             </section>
           </>
+        ) : null}
+
+        {canOperate && secaoAtiva === "relatorios" ? (
+          <section className="card card-span-2">
+            <h3>Relatorios dinamicos (XLSX)</h3>
+            <p className="muted">
+              Escolha os filtros, marque os campos desejados e exporte uma lista enxuta para acao operacional.
+            </p>
+            <form className="form" onSubmit={exportarRelatorioXlsx}>
+              <div className="filters-grid">
+                <label>
+                  Empreendimento
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.empreendimentoId}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, empreendimentoId: e.target.value }))}
+                  >
+                    <option value="">Todos</option>
+                    {itens.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.statusVigilancia}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, statusVigilancia: e.target.value }))}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="NAO_ENCONTRADO">Nao encontrado</option>
+                    <option value="DESATUALIZADO">Desatualizado</option>
+                    <option value="ATUALIZADO">Atualizado</option>
+                  </select>
+                </label>
+                <label>
+                  Bolsa Familia
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.pbf}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, pbf: e.target.value }))}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="COM_BOLSA">Com bolsa</option>
+                    <option value="SEM_BOLSA">Sem bolsa</option>
+                  </select>
+                </label>
+                <label>
+                  BPC
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.bpc}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpc: e.target.value }))}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="COM_BPC">Com BPC</option>
+                    <option value="SEM_BPC">Sem BPC</option>
+                  </select>
+                </label>
+                <label>
+                  Tipo BPC
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.bpcTipo}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpcTipo: e.target.value }))}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="IDOSO">Idoso</option>
+                    <option value="DEFICIENTE">Deficiente</option>
+                  </select>
+                </label>
+                <label>
+                  Busca (nome ou CPF)
+                  <input
+                    value={relatorioFiltros.q}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, q: e.target.value }))}
+                    placeholder="Digite para filtrar"
+                  />
+                </label>
+              </div>
+
+              <div className="list">
+                {opcoesColunasRelatorio.map((coluna) => (
+                  <label key={coluna.key} className="list-item">
+                    <input
+                      type="checkbox"
+                      checked={relatorioColunas.includes(coluna.key)}
+                      onChange={() => alternarColunaRelatorio(coluna.key)}
+                    />
+                    <span>{coluna.label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <button type="submit" disabled={exportandoRelatorio}>
+                {exportandoRelatorio ? "Gerando XLSX..." : "Exportar XLSX"}
+              </button>
+            </form>
+          </section>
         ) : null}
       </div>
     </div>
