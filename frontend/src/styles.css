@@ -74,6 +74,14 @@ body {
   color: #f8fafc;
 }
 
+.form select {
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
 .form button {
   width: fit-content;
   border: 0;
@@ -109,7 +117,7 @@ body {
 .dashboard-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .dashboard-grid .card:first-child {
@@ -128,4 +136,18 @@ body {
   border-radius: 6px;
   padding: 8px 12px;
   cursor: pointer;
+}
+
+.list {
+  display: grid;
+  gap: 8px;
+}
+
+.list-item {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px;
+  background: #0b1220;
 }
