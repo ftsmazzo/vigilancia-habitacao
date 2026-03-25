@@ -719,7 +719,7 @@ export function DashboardPage({ usuario }) {
                       </strong>
                       <small className="muted">
                         {item.statusVigilancia} · {item.motivoStatus || "Sem observacao"} ·{" "}
-                        {item.recebePbf ? "Com Bolsa Familia" : "Sem Bolsa Familia"}
+                        {item.recebePbfCalculado ? "Com Bolsa Familia" : "Sem Bolsa Familia"}
                       </small>
                     </article>
                   ))}

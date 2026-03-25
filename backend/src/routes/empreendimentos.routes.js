@@ -468,12 +468,30 @@ router.get(
       })
     ]);
 
+    const cpfsPagina = [...new Set(itens.map((item) => item.cpf))];
+    const pbfRows =
+      cpfsPagina.length > 0
+        ? await prisma.caduPessoa.findMany({
+            where: {
+              cpf: { in: cpfsPagina },
+              OR: [{ recebePbfFam: true }, { recebePbfPessoa: true }]
+            },
+            select: { cpf: true }
+          })
+        : [];
+    const cpfsComBolsaPagina = new Set(pbfRows.map((x) => x.cpf));
+
+    const itensComPbfCalculado = itens.map((item) => ({
+      ...item,
+      recebePbfCalculado: cpfsComBolsaPagina.has(item.cpf)
+    }));
+
     return res.json({
       page,
       limit,
       total,
       totalPages: Math.ceil(total / limit),
-      itens
+      itens: itensComPbfCalculado
     });
   }
 );
