@@ -6,7 +6,10 @@ import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { normalizeCpf } from "../utils/cpf.js";
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 1024 * 1024 * 512 } // 512MB
+});
 
 function parseBooleanFlag(value) {
   if (value === "1" || value === 1 || String(value).toUpperCase() === "SIM") return true;
@@ -37,6 +40,8 @@ function chunkArray(items, size) {
 }
 
 router.post("/upload", requireAuth, requireRole("MASTER"), upload.single("arquivo"), async (req, res) => {
+  console.log("Iniciando upload CADU...");
+
   if (!req.file?.buffer) {
     return res.status(400).json({
       error: true,
@@ -47,6 +52,7 @@ router.post("/upload", requireAuth, requireRole("MASTER"), upload.single("arquiv
 
   let records;
   try {
+    console.log(`Arquivo recebido: ${req.file.originalname} (${req.file.size} bytes)`);
     records = parse(req.file.buffer, {
       columns: true,
       skip_empty_lines: true,
@@ -62,6 +68,8 @@ router.post("/upload", requireAuth, requireRole("MASTER"), upload.single("arquiv
       code: "CADU_CSV_INVALID"
     });
   }
+
+  console.log(`CSV lido com ${records.length} linhas`);
 
   const toInsert = [];
   let ignoradosCpfInvalido = 0;

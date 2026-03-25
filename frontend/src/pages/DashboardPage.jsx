@@ -10,6 +10,8 @@ export function DashboardPage({ usuario }) {
   const [arquivoCadu, setArquivoCadu] = useState(null);
   const [retornoUpload, setRetornoUpload] = useState(null);
   const [retornoUploadCadu, setRetornoUploadCadu] = useState(null);
+  const [enviandoCadu, setEnviandoCadu] = useState(false);
+  const [progressoCadu, setProgressoCadu] = useState(0);
   const [form, setForm] = useState({
     nome: "",
     endereco: "",
@@ -77,18 +79,37 @@ export function DashboardPage({ usuario }) {
     event.preventDefault();
     setErro("");
     setRetornoUploadCadu(null);
+    setProgressoCadu(0);
     if (!arquivoCadu) {
       setErro("Selecione o CSV da base CADU.");
       return;
     }
 
     try {
+      setEnviandoCadu(true);
       const formData = new FormData();
       formData.append("arquivo", arquivoCadu);
-      const { data } = await api.post("/cadu/upload", formData);
+      const { data } = await api.post("/cadu/upload", formData, {
+        timeout: 1000 * 60 * 20,
+        onUploadProgress: (eventProgress) => {
+          if (!eventProgress.total) return;
+          const percentual = Math.round((eventProgress.loaded * 100) / eventProgress.total);
+          setProgressoCadu(percentual);
+        }
+      });
       setRetornoUploadCadu(data);
-    } catch (_error) {
-      setErro("Falha no upload da base CADU.");
+      setArquivoCadu(null);
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      if (error?.response?.status === 413) {
+        setErro("Arquivo muito grande para o gateway. Precisamos ajustar limite de upload no EasyPanel.");
+      } else if (backendMessage) {
+        setErro(`Falha no upload da base CADU: ${backendMessage}`);
+      } else {
+        setErro("Falha no upload da base CADU.");
+      }
+    } finally {
+      setEnviandoCadu(false);
     }
   }
 
@@ -109,8 +130,11 @@ export function DashboardPage({ usuario }) {
               Arquivo base
               <input type="file" accept=".csv" onChange={(e) => setArquivoCadu(e.target.files?.[0] || null)} />
             </label>
-            <button type="submit">Importar base CADU</button>
+            <button type="submit" disabled={enviandoCadu}>
+              {enviandoCadu ? "Enviando..." : "Importar base CADU"}
+            </button>
           </form>
+          {enviandoCadu ? <p className="muted">Progresso de envio: {progressoCadu}%</p> : null}
           {retornoUploadCadu ? (
             <p className="muted">
               Total: {retornoUploadCadu.total} | Inseridos: {retornoUploadCadu.inseridos} | Ignorados CPF invalido:{" "}

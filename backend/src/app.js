@@ -32,6 +32,14 @@ app.use("/api/cadu", caduRoutes);
 app.use("/api/empreendimentos", empreendimentosRoutes);
 
 app.use((error, _req, res, _next) => {
+  if (error?.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({
+      error: true,
+      message: "Arquivo excede limite de upload (max 512MB)",
+      code: "UPLOAD_FILE_TOO_LARGE"
+    });
+  }
+
   console.error(error);
   return res.status(500).json({
     error: true,
