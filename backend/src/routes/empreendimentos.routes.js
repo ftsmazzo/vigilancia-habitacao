@@ -19,16 +19,8 @@ const createSchema = z.object({
 const updateSchema = createSchema.partial();
 const mesesAtualizacao = Math.max(1, Number(process.env.CADU_ATUALIZACAO_MESES || 24));
 
-function empreendimentoScopeFilter(req) {
-  if (req.user.role === "HABITACAO") {
-    return { criadoPorUsuarioId: req.user.sub };
-  }
-  return {};
-}
-
 async function getEmpreendimentoByScope(req, id) {
-  const where = { id, ...empreendimentoScopeFilter(req) };
-  return prisma.empreendimento.findFirst({ where });
+  return prisma.empreendimento.findUnique({ where: { id } });
 }
 
 function isCadastroDesatualizado(dataAtualFam) {
@@ -40,21 +32,13 @@ function isCadastroDesatualizado(dataAtualFam) {
 }
 
 router.get("/", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
-  const where =
-    req.user.role === "HABITACAO"
-      ? {
-          criadoPorUsuarioId: req.user.sub
-        }
-      : undefined;
-
   const itens = await prisma.empreendimento.findMany({
-    where,
     orderBy: { criadoEm: "desc" }
   });
   return res.json(itens);
 });
 
-router.post("/", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
+router.post("/", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -86,7 +70,7 @@ router.get("/:id", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), asy
   return res.json(empreendimento);
 });
 
-router.put("/:id", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
+router.put("/:id", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -113,7 +97,7 @@ router.put("/:id", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), asy
   return res.json(updated);
 });
 
-router.delete("/:id", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
+router.delete("/:id", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
   const empreendimento = await getEmpreendimentoByScope(req, req.params.id);
   if (!empreendimento) {
     return res.status(404).json({
@@ -130,7 +114,7 @@ router.delete("/:id", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), 
 router.post(
   "/:id/pre-selecionados/upload",
   requireAuth,
-  requireRole("MASTER", "ADMIN", "HABITACAO"),
+  requireRole("MASTER", "ADMIN"),
   upload.single("arquivo"),
   async (req, res) => {
     const empreendimento = await getEmpreendimentoByScope(req, req.params.id);
@@ -245,7 +229,7 @@ router.get("/:id/pre-selecionados", requireAuth, requireRole("MASTER", "ADMIN", 
   });
 });
 
-router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
+router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
   const empreendimento = await getEmpreendimentoByScope(req, req.params.id);
   if (!empreendimento) {
     return res.status(404).json({

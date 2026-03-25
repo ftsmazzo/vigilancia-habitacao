@@ -3,6 +3,8 @@ import { api } from "../services/api.js";
 
 export function DashboardPage({ usuario }) {
   const isMaster = usuario?.role === "MASTER";
+  const isAdmin = usuario?.role === "ADMIN";
+  const canOperate = isMaster || isAdmin;
   const [itens, setItens] = useState([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
@@ -583,108 +585,112 @@ export function DashboardPage({ usuario }) {
 
         {secaoAtiva === "empreendimentos" ? (
           <>
-            <section className="card">
-              <h3>Criar empreendimento</h3>
-              <form className="form" onSubmit={criarEmpreendimento}>
-                <label>
-                  Nome
-                  <input
-                    value={form.nome}
-                    onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  Endereco
-                  <input value={form.endereco} onChange={(e) => setForm((s) => ({ ...s, endereco: e.target.value }))} />
-                </label>
-                <label>
-                  Municipio
-                  <input value={form.municipio} onChange={(e) => setForm((s) => ({ ...s, municipio: e.target.value }))} />
-                </label>
-                <label>
-                  Numero de unidades
-                  <input
-                    value={form.numUnidades}
-                    onChange={(e) => setForm((s) => ({ ...s, numUnidades: e.target.value }))}
-                    type="number"
-                    min="1"
-                  />
-                </label>
-                <button type="submit">Salvar empreendimento</button>
-              </form>
-            </section>
+            {canOperate ? (
+              <>
+                <section className="card">
+                  <h3>Criar empreendimento</h3>
+                  <form className="form" onSubmit={criarEmpreendimento}>
+                    <label>
+                      Nome
+                      <input
+                        value={form.nome}
+                        onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Endereco
+                      <input value={form.endereco} onChange={(e) => setForm((s) => ({ ...s, endereco: e.target.value }))} />
+                    </label>
+                    <label>
+                      Municipio
+                      <input value={form.municipio} onChange={(e) => setForm((s) => ({ ...s, municipio: e.target.value }))} />
+                    </label>
+                    <label>
+                      Numero de unidades
+                      <input
+                        value={form.numUnidades}
+                        onChange={(e) => setForm((s) => ({ ...s, numUnidades: e.target.value }))}
+                        type="number"
+                        min="1"
+                      />
+                    </label>
+                    <button type="submit">Salvar empreendimento</button>
+                  </form>
+                </section>
 
-            <section className="card">
-              <h3>Editar empreendimento</h3>
-              <form className="form" onSubmit={salvarEdicaoEmpreendimento}>
-                <label>
-                  Empreendimento
-                  <select
-                    className="enhanced-select"
-                    value={editEmpId}
-                    onChange={(e) => {
-                      const nextId = e.target.value;
-                      setEditEmpId(nextId);
-                      carregarEmpreendimentoEdicao(nextId);
-                    }}
-                  >
-                    <option value="">Selecione...</option>
-                    {itens.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.nome}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Nome
-                  <input
-                    value={editEmpForm.nome}
-                    onChange={(e) => setEditEmpForm((s) => ({ ...s, nome: e.target.value }))}
-                    required
-                  />
-                </label>
-                <label>
-                  Endereco
-                  <input
-                    value={editEmpForm.endereco}
-                    onChange={(e) => setEditEmpForm((s) => ({ ...s, endereco: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Municipio
-                  <input
-                    value={editEmpForm.municipio}
-                    onChange={(e) => setEditEmpForm((s) => ({ ...s, municipio: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Numero de unidades
-                  <input
-                    value={editEmpForm.numUnidades}
-                    onChange={(e) => setEditEmpForm((s) => ({ ...s, numUnidades: e.target.value }))}
-                    type="number"
-                    min="1"
-                  />
-                </label>
-                <label>
-                  Status
-                  <select
-                    className="enhanced-select"
-                    value={editEmpForm.status}
-                    onChange={(e) => setEditEmpForm((s) => ({ ...s, status: e.target.value }))}
-                  >
-                    <option value="EM_CAPTACAO">EM_CAPTACAO</option>
-                    <option value="EM_ANALISE">EM_ANALISE</option>
-                    <option value="CONCLUIDO">CONCLUIDO</option>
-                  </select>
-                </label>
-                <button type="submit" disabled={!editEmpId}>
-                  Salvar alteracoes
-                </button>
-              </form>
-            </section>
+                <section className="card">
+                  <h3>Editar empreendimento</h3>
+                  <form className="form" onSubmit={salvarEdicaoEmpreendimento}>
+                    <label>
+                      Empreendimento
+                      <select
+                        className="enhanced-select"
+                        value={editEmpId}
+                        onChange={(e) => {
+                          const nextId = e.target.value;
+                          setEditEmpId(nextId);
+                          carregarEmpreendimentoEdicao(nextId);
+                        }}
+                      >
+                        <option value="">Selecione...</option>
+                        {itens.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Nome
+                      <input
+                        value={editEmpForm.nome}
+                        onChange={(e) => setEditEmpForm((s) => ({ ...s, nome: e.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Endereco
+                      <input
+                        value={editEmpForm.endereco}
+                        onChange={(e) => setEditEmpForm((s) => ({ ...s, endereco: e.target.value }))}
+                      />
+                    </label>
+                    <label>
+                      Municipio
+                      <input
+                        value={editEmpForm.municipio}
+                        onChange={(e) => setEditEmpForm((s) => ({ ...s, municipio: e.target.value }))}
+                      />
+                    </label>
+                    <label>
+                      Numero de unidades
+                      <input
+                        value={editEmpForm.numUnidades}
+                        onChange={(e) => setEditEmpForm((s) => ({ ...s, numUnidades: e.target.value }))}
+                        type="number"
+                        min="1"
+                      />
+                    </label>
+                    <label>
+                      Status
+                      <select
+                        className="enhanced-select"
+                        value={editEmpForm.status}
+                        onChange={(e) => setEditEmpForm((s) => ({ ...s, status: e.target.value }))}
+                      >
+                        <option value="EM_CAPTACAO">EM_CAPTACAO</option>
+                        <option value="EM_ANALISE">EM_ANALISE</option>
+                        <option value="CONCLUIDO">CONCLUIDO</option>
+                      </select>
+                    </label>
+                    <button type="submit" disabled={!editEmpId}>
+                      Salvar alteracoes
+                    </button>
+                  </form>
+                </section>
+              </>
+            ) : null}
 
             <section className="card">
               <h3>Empreendimentos</h3>
@@ -709,47 +715,58 @@ export function DashboardPage({ usuario }) {
         {secaoAtiva === "listas-cruzamento" ? (
           <>
             <div className="split-grid card-span-2">
-              <section className="card">
-                <h3>Upload da lista para cruzamento</h3>
-                <form className="form" onSubmit={subirLista}>
-                  <label>
-                    Empreendimento
-                    <select className="enhanced-select" value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
-                      <option value="">Selecione...</option>
-                      {itens.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.nome}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Arquivo
-                    <input type="file" accept=".xls,.xlsx" onChange={(e) => setArquivo(e.target.files?.[0] || null)} />
-                  </label>
-                  <button type="submit">Importar lista</button>
-                </form>
-                {retornoUpload ? (
-                  <p className="muted">
-                    Importados: {retornoUpload.importados} | Ignorados: {retornoUpload.ignorados} | Erros:{" "}
-                    {retornoUpload.erros?.length || 0}
-                  </p>
-                ) : null}
-              </section>
+              {canOperate ? (
+                <>
+                  <section className="card">
+                    <h3>Upload da lista para cruzamento</h3>
+                    <form className="form" onSubmit={subirLista}>
+                      <label>
+                        Empreendimento
+                        <select className="enhanced-select" value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
+                          <option value="">Selecione...</option>
+                          {itens.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Arquivo
+                        <input type="file" accept=".xls,.xlsx" onChange={(e) => setArquivo(e.target.files?.[0] || null)} />
+                      </label>
+                      <button type="submit">Importar lista</button>
+                    </form>
+                    {retornoUpload ? (
+                      <p className="muted">
+                        Importados: {retornoUpload.importados} | Ignorados: {retornoUpload.ignorados} | Erros:{" "}
+                        {retornoUpload.erros?.length || 0}
+                      </p>
+                    ) : null}
+                  </section>
 
-              <section className="card">
-                <h3>Execução do cruzamento</h3>
-                <p className="muted">Após importar a lista, execute o cruzamento para atualizar os indicadores.</p>
-                <button type="button" onClick={executarCruzamento} disabled={!selecionadoId || executandoCruzamento}>
-                  {executandoCruzamento ? "Executando cruzamento..." : "Executar cruzamento"}
-                </button>
-                {retornoCruzamento ? (
+                  <section className="card">
+                    <h3>Execução do cruzamento</h3>
+                    <p className="muted">Após importar a lista, execute o cruzamento para atualizar os indicadores.</p>
+                    <button type="button" onClick={executarCruzamento} disabled={!selecionadoId || executandoCruzamento}>
+                      {executandoCruzamento ? "Executando cruzamento..." : "Executar cruzamento"}
+                    </button>
+                    {retornoCruzamento ? (
+                      <p className="muted">
+                        Cruzados: {retornoCruzamento.total} | Encontrados: {retornoCruzamento.encontrados} | Nao encontrados:{" "}
+                        {retornoCruzamento.naoEncontrados} | PBF: {retornoCruzamento.beneficiariosPbf}
+                      </p>
+                    ) : null}
+                  </section>
+                </>
+              ) : (
+                <section className="card">
+                  <h3>Modo consultivo</h3>
                   <p className="muted">
-                    Cruzados: {retornoCruzamento.total} | Encontrados: {retornoCruzamento.encontrados} | Nao encontrados:{" "}
-                    {retornoCruzamento.naoEncontrados} | PBF: {retornoCruzamento.beneficiariosPbf}
+                    Seu perfil HABITACAO possui acesso de consulta. Upload e cruzamento sao executados por MASTER/ADMIN.
                   </p>
-                ) : null}
-              </section>
+                </section>
+              )}
             </div>
 
             <section className="card card-span-2">
