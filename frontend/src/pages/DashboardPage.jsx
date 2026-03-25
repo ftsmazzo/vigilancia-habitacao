@@ -486,6 +486,10 @@ export function DashboardPage({ usuario }) {
                   {enviandoBpc ? "Enviando..." : "Importar base BPC"}
                 </button>
               </form>
+            </section>
+
+            <section className="card">
+              <h3>Status base BPC</h3>
               <div className="metrics-grid">
                 <div className="metric-item">
                   <span>Total BPC</span>
@@ -566,6 +570,8 @@ export function DashboardPage({ usuario }) {
                   <div className="metric-item"><span>Desatualizados</span><strong>{metricas.desatualizados}</strong></div>
                   <div className="metric-item"><span>Beneficiarios PBF</span><strong>{metricas.beneficiariosPbf}</strong></div>
                   <div className="metric-item"><span>Beneficiarios BPC</span><strong>{metricas.beneficiariosBpc}</strong></div>
+                  <div className="metric-item"><span>BPC Idoso</span><strong>{metricas.beneficiariosBpcIdoso}</strong></div>
+                  <div className="metric-item"><span>BPC Deficiente</span><strong>{metricas.beneficiariosBpcDeficiente}</strong></div>
                   <div className="metric-item"><span>Cobertura</span><strong>{metricas.percentualCobertura}</strong></div>
                   <div className="metric-item"><span>PBF entre encontrados</span><strong>{metricas.percentualPbfEncontrados}</strong></div>
                   <div className="metric-item"><span>BPC entre encontrados</span><strong>{metricas.percentualBpcEncontrados}</strong></div>

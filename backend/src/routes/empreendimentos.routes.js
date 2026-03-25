@@ -602,6 +602,23 @@ router.get("/:id/metricas", requireAuth, requireRole("MASTER", "ADMIN", "HABITAC
           }
         })
       : 0;
+  const [beneficiariosBpcIdoso, beneficiariosBpcDeficiente] =
+    cpfs.length > 0
+      ? await Promise.all([
+          prisma.bpcBeneficio.count({
+            where: {
+              cpf: { in: cpfs },
+              tipo: "IDOSO"
+            }
+          }),
+          prisma.bpcBeneficio.count({
+            where: {
+              cpf: { in: cpfs },
+              tipo: "DEFICIENTE"
+            }
+          })
+        ])
+      : [0, 0];
 
   const percentualCobertura = totalListados > 0 ? Math.round((encontrados * 100) / totalListados) : 0;
   const percentualDesatualizados = encontrados > 0 ? Math.round((desatualizados * 100) / encontrados) : 0;
@@ -616,6 +633,8 @@ router.get("/:id/metricas", requireAuth, requireRole("MASTER", "ADMIN", "HABITAC
     desatualizados,
     beneficiariosPbf,
     beneficiariosBpc,
+    beneficiariosBpcIdoso,
+    beneficiariosBpcDeficiente,
     percentualCobertura: `${percentualCobertura}%`,
     percentualDesatualizados: `${percentualDesatualizados}%`,
     percentualPbfEncontrados: `${percentualPbfEncontrados}%`,
