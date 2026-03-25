@@ -69,7 +69,10 @@ export default function App() {
       <main className="container">
         <Routes>
           <Route path="/login" element={!usuario ? <LoginPage onLoginSuccess={carregarUsuario} /> : <Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={usuario ? <DashboardPage usuario={usuario} /> : <Navigate to="/login" replace />} />
+          <Route
+            path="/dashboard"
+            element={usuario ? <DashboardPage usuario={usuario} onUsuarioAtualizado={setUsuario} /> : <Navigate to="/login" replace />}
+          />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>

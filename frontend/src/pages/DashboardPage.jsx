@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api.js";
 
-export function DashboardPage({ usuario }) {
+export function DashboardPage({ usuario, onUsuarioAtualizado }) {
   const isMaster = usuario?.role === "MASTER";
   const isAdmin = usuario?.role === "ADMIN";
   const canOperate = isMaster || isAdmin;
@@ -60,6 +60,21 @@ export function DashboardPage({ usuario }) {
     senha: "",
     role: "HABITACAO"
   });
+  const [usuarioEditId, setUsuarioEditId] = useState("");
+  const [usuarioEditForm, setUsuarioEditForm] = useState({
+    nome: "",
+    email: "",
+    role: "HABITACAO",
+    ativo: true
+  });
+  const [meuPerfilForm, setMeuPerfilForm] = useState({
+    nome: usuario?.nome || "",
+    email: usuario?.email || ""
+  });
+  const [senhaForm, setSenhaForm] = useState({
+    senhaAtual: "",
+    novaSenha: ""
+  });
   const [form, setForm] = useState({
     nome: "",
     endereco: "",
@@ -101,7 +116,7 @@ export function DashboardPage({ usuario }) {
   }
 
   async function carregarUsuarios() {
-    if (!isMaster) return;
+    if (!canOperate) return;
     try {
       const { data } = await api.get("/usuarios");
       setUsuarios(data);
@@ -137,6 +152,13 @@ export function DashboardPage({ usuario }) {
     carregarCaduStatus();
     carregarBpcStatus();
   }, []);
+
+  useEffect(() => {
+    setMeuPerfilForm({
+      nome: usuario?.nome || "",
+      email: usuario?.email || ""
+    });
+  }, [usuario?.nome, usuario?.email]);
 
   useEffect(() => {
     setResultadosPage(1);
@@ -328,8 +350,29 @@ export function DashboardPage({ usuario }) {
       setUsuarioForm({ nome: "", email: "", senha: "", role: "HABITACAO" });
       await carregarUsuarios();
       setMensagem("Usuario criado com sucesso.");
-    } catch (_error) {
-      setErro("Falha ao criar usuario.");
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      setErro(backendMessage || "Falha ao criar usuario.");
+    }
+  }
+
+  async function salvarEdicaoUsuario(event) {
+    event.preventDefault();
+    if (!usuarioEditId) return;
+    setErro("");
+    setMensagem("");
+    try {
+      await api.put(`/usuarios/${usuarioEditId}`, {
+        nome: usuarioEditForm.nome,
+        email: usuarioEditForm.email,
+        role: usuarioEditForm.role,
+        ativo: usuarioEditForm.ativo
+      });
+      await carregarUsuarios();
+      setMensagem("Usuario atualizado com sucesso.");
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      setErro(backendMessage || "Falha ao atualizar usuario.");
     }
   }
 
@@ -340,8 +383,48 @@ export function DashboardPage({ usuario }) {
       await api.put(`/usuarios/${item.id}`, { ativo });
       await carregarUsuarios();
       setMensagem(`Usuario ${ativo ? "reativado" : "desativado"} com sucesso.`);
-    } catch (_error) {
-      setErro("Falha ao atualizar usuario.");
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      setErro(backendMessage || "Falha ao atualizar usuario.");
+    }
+  }
+
+  function carregarUsuarioEdicao(id) {
+    const usuarioSelecionado = usuarios.find((item) => item.id === id);
+    if (!usuarioSelecionado) return;
+    setUsuarioEditForm({
+      nome: usuarioSelecionado.nome || "",
+      email: usuarioSelecionado.email || "",
+      role: usuarioSelecionado.role || "HABITACAO",
+      ativo: Boolean(usuarioSelecionado.ativo)
+    });
+  }
+
+  async function salvarMeuPerfil(event) {
+    event.preventDefault();
+    setErro("");
+    setMensagem("");
+    try {
+      const { data } = await api.put("/auth/me", meuPerfilForm);
+      onUsuarioAtualizado?.(data);
+      setMensagem("Perfil atualizado com sucesso.");
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      setErro(backendMessage || "Falha ao atualizar perfil.");
+    }
+  }
+
+  async function alterarMinhaSenha(event) {
+    event.preventDefault();
+    setErro("");
+    setMensagem("");
+    try {
+      await api.put("/auth/me/senha", senhaForm);
+      setSenhaForm({ senhaAtual: "", novaSenha: "" });
+      setMensagem("Senha alterada com sucesso.");
+    } catch (error) {
+      const backendMessage = error?.response?.data?.message;
+      setErro(backendMessage || "Falha ao alterar senha.");
     }
   }
 
@@ -389,13 +472,16 @@ export function DashboardPage({ usuario }) {
     const base = [
       { id: "visao-geral", label: "Visao geral" },
       { id: "empreendimentos", label: "Empreendimentos" },
-      { id: "listas-cruzamento", label: "Listas e cruzamento" }
+      { id: "listas-cruzamento", label: "Listas e cruzamento" },
+      { id: "minha-conta", label: "Minha conta" }
     ];
     if (canOperate) {
       base.push({ id: "relatorios", label: "Relatorios" });
     }
     if (isMaster) {
       base.splice(1, 0, { id: "base-cadu", label: "Base CADU" });
+    }
+    if (canOperate) {
       base.push({ id: "usuarios", label: "Usuarios" });
     }
     return base;
@@ -981,7 +1067,7 @@ export function DashboardPage({ usuario }) {
           </>
         ) : null}
 
-        {isMaster && secaoAtiva === "usuarios" ? (
+        {canOperate && secaoAtiva === "usuarios" ? (
           <>
             <section className="card">
               <h3>Criar usuario</h3>
@@ -1012,6 +1098,7 @@ export function DashboardPage({ usuario }) {
                     required
                   />
                 </label>
+                <small className="muted">Senha forte: 8+ caracteres com maiuscula, minuscula, numero e simbolo.</small>
                 <label>
                   Perfil
                   <select
@@ -1024,6 +1111,70 @@ export function DashboardPage({ usuario }) {
                   </select>
                 </label>
                 <button type="submit">Criar usuario</button>
+              </form>
+            </section>
+
+            <section className="card">
+              <h3>Editar usuario</h3>
+              <form className="form" onSubmit={salvarEdicaoUsuario}>
+                <label>
+                  Usuario
+                  <select
+                    className="enhanced-select"
+                    value={usuarioEditId}
+                    onChange={(e) => {
+                      const nextId = e.target.value;
+                      setUsuarioEditId(nextId);
+                      carregarUsuarioEdicao(nextId);
+                    }}
+                  >
+                    <option value="">Selecione...</option>
+                    {usuarios.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.nome} ({item.role})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Nome
+                  <input
+                    value={usuarioEditForm.nome}
+                    onChange={(e) => setUsuarioEditForm((s) => ({ ...s, nome: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={usuarioEditForm.email}
+                    onChange={(e) => setUsuarioEditForm((s) => ({ ...s, email: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Perfil
+                  <select
+                    className="enhanced-select"
+                    value={usuarioEditForm.role}
+                    onChange={(e) => setUsuarioEditForm((s) => ({ ...s, role: e.target.value }))}
+                  >
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="HABITACAO">HABITACAO</option>
+                  </select>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={usuarioEditForm.ativo}
+                    onChange={(e) => setUsuarioEditForm((s) => ({ ...s, ativo: e.target.checked }))}
+                  />{" "}
+                  Usuario ativo
+                </label>
+                <button type="submit" disabled={!usuarioEditId}>
+                  Salvar usuario
+                </button>
               </form>
             </section>
 
@@ -1160,6 +1311,60 @@ export function DashboardPage({ usuario }) {
               </button>
             </form>
           </section>
+        ) : null}
+
+        {secaoAtiva === "minha-conta" ? (
+          <>
+            <section className="card">
+              <h3>Meu perfil</h3>
+              <form className="form" onSubmit={salvarMeuPerfil}>
+                <label>
+                  Nome
+                  <input
+                    value={meuPerfilForm.nome}
+                    onChange={(e) => setMeuPerfilForm((s) => ({ ...s, nome: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={meuPerfilForm.email}
+                    onChange={(e) => setMeuPerfilForm((s) => ({ ...s, email: e.target.value }))}
+                    required
+                  />
+                </label>
+                <button type="submit">Salvar perfil</button>
+              </form>
+            </section>
+
+            <section className="card">
+              <h3>Alterar senha</h3>
+              <form className="form" onSubmit={alterarMinhaSenha}>
+                <label>
+                  Senha atual
+                  <input
+                    type="password"
+                    value={senhaForm.senhaAtual}
+                    onChange={(e) => setSenhaForm((s) => ({ ...s, senhaAtual: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label>
+                  Nova senha
+                  <input
+                    type="password"
+                    value={senhaForm.novaSenha}
+                    onChange={(e) => setSenhaForm((s) => ({ ...s, novaSenha: e.target.value }))}
+                    required
+                  />
+                </label>
+                <small className="muted">Senha forte: 8+ caracteres com maiuscula, minuscula, numero e simbolo.</small>
+                <button type="submit">Atualizar senha</button>
+              </form>
+            </section>
+          </>
         ) : null}
       </div>
     </div>
