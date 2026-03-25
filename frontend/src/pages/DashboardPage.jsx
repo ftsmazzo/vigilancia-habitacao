@@ -1164,13 +1164,16 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
                     <option value="HABITACAO">HABITACAO</option>
                   </select>
                 </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={usuarioEditForm.ativo}
-                    onChange={(e) => setUsuarioEditForm((s) => ({ ...s, ativo: e.target.checked }))}
-                  />{" "}
-                  Usuario ativo
+                <label className="switch-row">
+                  <span>Usuario ativo</span>
+                  <span className="switch">
+                    <input
+                      type="checkbox"
+                      checked={usuarioEditForm.ativo}
+                      onChange={(e) => setUsuarioEditForm((s) => ({ ...s, ativo: e.target.checked }))}
+                    />
+                    <span className="slider" />
+                  </span>
                 </label>
                 <button type="submit" disabled={!usuarioEditId}>
                   Salvar usuario
@@ -1192,17 +1195,13 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
                       <small className="muted">
                         {item.email} · {item.ativo ? "Ativo" : "Inativo"}
                       </small>
-                      <div className="row-actions">
-                        {item.ativo ? (
-                          <button type="button" onClick={() => alterarAtivoUsuario(item, false)}>
-                            Desativar
-                          </button>
-                        ) : (
-                          <button type="button" onClick={() => alterarAtivoUsuario(item, true)}>
-                            Reativar
-                          </button>
-                        )}
-                      </div>
+                      <label className="switch-row">
+                        <span className="muted">Ativo</span>
+                        <span className="switch">
+                          <input type="checkbox" checked={Boolean(item.ativo)} onChange={(e) => alterarAtivoUsuario(item, e.target.checked)} />
+                          <span className="slider" />
+                        </span>
+                      </label>
                     </article>
                   ))}
                 </div>
@@ -1212,98 +1211,109 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
         ) : null}
 
         {canOperate && secaoAtiva === "relatorios" ? (
-          <section className="card card-span-2">
+          <section className="card card-span-2 reports-shell">
             <h3>Relatorios dinamicos (XLSX)</h3>
             <p className="muted">
               Escolha os filtros, marque os campos desejados e exporte uma lista enxuta para acao operacional.
             </p>
             <form className="form" onSubmit={exportarRelatorioXlsx}>
-              <div className="filters-grid">
-                <label>
-                  Empreendimento
-                  <select
-                    className="enhanced-select"
-                    value={relatorioFiltros.empreendimentoId}
-                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, empreendimentoId: e.target.value }))}
-                  >
-                    <option value="">Todos</option>
-                    {itens.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.nome}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Status
-                  <select
-                    className="enhanced-select"
-                    value={relatorioFiltros.statusVigilancia}
-                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, statusVigilancia: e.target.value }))}
-                  >
-                    <option value="TODOS">Todos</option>
-                    <option value="NAO_ENCONTRADO">Nao encontrado</option>
-                    <option value="DESATUALIZADO">Desatualizado</option>
-                    <option value="ATUALIZADO">Atualizado</option>
-                  </select>
-                </label>
-                <label>
-                  Bolsa Familia
-                  <select
-                    className="enhanced-select"
-                    value={relatorioFiltros.pbf}
-                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, pbf: e.target.value }))}
-                  >
-                    <option value="TODOS">Todos</option>
-                    <option value="COM_BOLSA">Com bolsa</option>
-                    <option value="SEM_BOLSA">Sem bolsa</option>
-                  </select>
-                </label>
-                <label>
-                  BPC
-                  <select
-                    className="enhanced-select"
-                    value={relatorioFiltros.bpc}
-                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpc: e.target.value }))}
-                  >
-                    <option value="TODOS">Todos</option>
-                    <option value="COM_BPC">Com BPC</option>
-                    <option value="SEM_BPC">Sem BPC</option>
-                  </select>
-                </label>
-                <label>
-                  Tipo BPC
-                  <select
-                    className="enhanced-select"
-                    value={relatorioFiltros.bpcTipo}
-                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpcTipo: e.target.value }))}
-                  >
-                    <option value="TODOS">Todos</option>
-                    <option value="IDOSO">Idoso</option>
-                    <option value="DEFICIENTE">Deficiente</option>
-                  </select>
-                </label>
-                <label>
-                  Busca (nome ou CPF)
-                  <input
-                    value={relatorioFiltros.q}
-                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, q: e.target.value }))}
-                    placeholder="Digite para filtrar"
-                  />
-                </label>
-              </div>
+              <div className="reports-grid">
+                <section className="inner-card">
+                  <h4>Filtros</h4>
+                  <div className="filters-grid">
+                    <label>
+                      Empreendimento
+                      <select
+                        className="enhanced-select"
+                        value={relatorioFiltros.empreendimentoId}
+                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, empreendimentoId: e.target.value }))}
+                      >
+                        <option value="">Todos</option>
+                        {itens.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Status
+                      <select
+                        className="enhanced-select"
+                        value={relatorioFiltros.statusVigilancia}
+                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, statusVigilancia: e.target.value }))}
+                      >
+                        <option value="TODOS">Todos</option>
+                        <option value="NAO_ENCONTRADO">Nao encontrado</option>
+                        <option value="DESATUALIZADO">Desatualizado</option>
+                        <option value="ATUALIZADO">Atualizado</option>
+                      </select>
+                    </label>
+                    <label>
+                      Bolsa Familia
+                      <select
+                        className="enhanced-select"
+                        value={relatorioFiltros.pbf}
+                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, pbf: e.target.value }))}
+                      >
+                        <option value="TODOS">Todos</option>
+                        <option value="COM_BOLSA">Com bolsa</option>
+                        <option value="SEM_BOLSA">Sem bolsa</option>
+                      </select>
+                    </label>
+                    <label>
+                      BPC
+                      <select
+                        className="enhanced-select"
+                        value={relatorioFiltros.bpc}
+                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpc: e.target.value }))}
+                      >
+                        <option value="TODOS">Todos</option>
+                        <option value="COM_BPC">Com BPC</option>
+                        <option value="SEM_BPC">Sem BPC</option>
+                      </select>
+                    </label>
+                    <label>
+                      Tipo BPC
+                      <select
+                        className="enhanced-select"
+                        value={relatorioFiltros.bpcTipo}
+                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpcTipo: e.target.value }))}
+                      >
+                        <option value="TODOS">Todos</option>
+                        <option value="IDOSO">Idoso</option>
+                        <option value="DEFICIENTE">Deficiente</option>
+                      </select>
+                    </label>
+                    <label>
+                      Busca (nome ou CPF)
+                      <input
+                        value={relatorioFiltros.q}
+                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, q: e.target.value }))}
+                        placeholder="Digite para filtrar"
+                      />
+                    </label>
+                  </div>
+                </section>
 
-              <div className="list">
-                {opcoesColunasRelatorio.map((coluna) => (
-                  <label key={coluna.key} className="list-item">
-                    <input
-                      type="checkbox"
-                      checked={relatorioColunas.includes(coluna.key)}
-                      onChange={() => alternarColunaRelatorio(coluna.key)}
-                    />
-                    <span>{coluna.label}</span>
-                  </label>
-                ))}
+                <section className="inner-card">
+                  <h4>Campos da exportacao</h4>
+                  <div className="switch-list">
+                    {opcoesColunasRelatorio.map((coluna) => (
+                      <label key={coluna.key} className="switch-row switch-card">
+                        <span>{coluna.label}</span>
+                        <span className="switch">
+                          <input
+                            type="checkbox"
+                            checked={relatorioColunas.includes(coluna.key)}
+                            onChange={() => alternarColunaRelatorio(coluna.key)}
+                          />
+                          <span className="slider" />
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
               </div>
 
               <button type="submit" disabled={exportandoRelatorio}>
