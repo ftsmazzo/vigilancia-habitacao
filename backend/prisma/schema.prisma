@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id         String    @id @default(uuid())
+  nome       String
+  email      String    @unique
+  senhaHash  String
+  role       Role      @default(HABITACAO)
+  ativo      Boolean   @default(true)
+  criadoEm   DateTime  @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  HABITACAO
+}
+
+model Empreendimento {
+  id               String           @id @default(uuid())
+  nome             String
+  endereco         String?
+  municipio        String?
+  numUnidades      Int?
+  status           StatusEmp        @default(EM_CAPTACAO)
+  criadoPorUsuarioId String?
+  criadoEm         DateTime         @default(now())
+  atualizadoEm     DateTime         @updatedAt
+  preSelecionados  PreSelecionado[]
+}
+
+enum StatusEmp {
+  EM_CAPTACAO
+  EM_ANALISE
+  CONCLUIDO
+}
+
+model CaduPessoa {
+  id                 String   @id @default(uuid())
+  cpf                String   @unique
+  nomePessoa         String?
+  nisPessoa          String?
+  codFamiliarFam     String?
+  dataAtualFam       DateTime?
+  recebePbfFam       Boolean?
+  recebePbfPessoa    Boolean?
+  rendaPerCapitaFam  Decimal?
+  composicaoFamiliar Int?
+  moradiaJson        Json?
+  origemRefCad       String?
+  importadoEm        DateTime @default(now())
+  atualizadoEm       DateTime @updatedAt
+}
+
+model PreSelecionado {
+  id                        String         @id @default(uuid())
+  empreendimentoId          String
+  empreendimento            Empreendimento @relation(fields: [empreendimentoId], references: [id], onDelete: Cascade)
+  cpf                       String
+  nomeInformado             String?
+  nisInformado              String?
+  dataAtualizacaoInscricao  DateTime?
+  contato                   String?
+  observacoes               String?
+  camposOriginaisPlanilha   Json?
+  statusCruzamento          StatusCruz     @default(PENDENTE)
+  statusVigilancia          StatusVigilancia @default(PENDENTE_ANALISE)
+  motivoStatus              String?
+  cruzadoEm                 DateTime?
+  dadosCruzados             DadosCruzados?
+  criadoEm                  DateTime       @default(now())
+  atualizadoEm              DateTime       @updatedAt
+
+  @@unique([empreendimentoId, cpf])
+}
+
+enum StatusCruz {
+  PENDENTE
+  ENCONTRADO
+  NAO_ENCONTRADO
+}
+
+enum StatusVigilancia {
+  PENDENTE_ANALISE
+  NAO_ENCONTRADO
+  DESATUALIZADO
+  ATUALIZADO
+}
+
+model DadosCruzados {
+  id               String         @id @default(uuid())
+  preSelecionadoId String         @unique
+  preSelecionado   PreSelecionado @relation(fields: [preSelecionadoId], references: [id], onDelete: Cascade)
+  camposCADU       Json
+  camposAdicionais Json?
+  atualizadoEm     DateTime       @updatedAt
+}
+
+model LogAuditoria {
+  id        String   @id @default(uuid())
+  usuarioId String?
+  acao      String
+  detalhes  Json?
+  criadoEm  DateTime @default(now())
+}
