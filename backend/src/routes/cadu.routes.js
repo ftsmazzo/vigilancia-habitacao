@@ -270,18 +270,22 @@ router.post("/upload/finalize", requireAuth, requireRole("MASTER"), async (req, 
 });
 
 router.get("/status", requireAuth, requireRole("MASTER", "ADMIN"), async (_req, res) => {
-  const [totalPessoas, totalFamilias, ultimoImport] = await Promise.all([
+  const [totalPessoas, totalFamilias, ultimoImport, dataBaseMax] = await Promise.all([
     prisma.caduPessoa.count(),
     prisma.caduFamilia.count(),
     prisma.caduRawImport.findFirst({
       orderBy: { criadoEm: "desc" },
-      select: { criadoEm: true, finalizadoEm: true, totalLinhas: true, status: true, id: true }
+      select: { criadoEm: true, finalizadoEm: true, totalLinhas: true, status: true, id: true, nomeArquivo: true }
+    }),
+    prisma.caduFamilia.aggregate({
+      _max: { dataAtualFam: true }
     })
   ]);
 
   return res.json({
     totalPessoas,
     totalFamilias,
+    dataBaseReferencia: dataBaseMax._max.dataAtualFam || null,
     ultimoUpload: ultimoImport || null
   });
 });

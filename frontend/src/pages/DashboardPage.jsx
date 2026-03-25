@@ -21,6 +21,7 @@ export function DashboardPage({ usuario }) {
   const [resultados, setResultados] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [overview, setOverview] = useState(null);
+  const [caduStatus, setCaduStatus] = useState(null);
   const [usuarioForm, setUsuarioForm] = useState({
     nome: "",
     email: "",
@@ -69,10 +70,21 @@ export function DashboardPage({ usuario }) {
     }
   }
 
+  async function carregarCaduStatus() {
+    if (!isMaster) return;
+    try {
+      const { data } = await api.get("/cadu/status");
+      setCaduStatus(data);
+    } catch (_error) {
+      setErro("Falha ao carregar status da base CADU.");
+    }
+  }
+
   useEffect(() => {
     carregarEmpreendimentos();
     carregarUsuarios();
     carregarOverview();
+    carregarCaduStatus();
   }, []);
 
   useEffect(() => {
@@ -171,6 +183,7 @@ export function DashboardPage({ usuario }) {
       setRetornoUploadCadu(data);
       setArquivoCadu(null);
       await carregarOverview();
+      await carregarCaduStatus();
       setMensagem("Base CADU importada com sucesso.");
     } catch (error) {
       const backendMessage = error?.response?.data?.message;
@@ -240,7 +253,7 @@ export function DashboardPage({ usuario }) {
       { id: "listas-cruzamento", label: "Listas e cruzamento" }
     ];
     if (isMaster) {
-      base.unshift({ id: "base-cadu", label: "Base CADU" });
+      base.splice(1, 0, { id: "base-cadu", label: "Base CADU" });
       base.push({ id: "usuarios", label: "Usuarios" });
     }
     return base;
@@ -277,25 +290,61 @@ export function DashboardPage({ usuario }) {
         </section>
 
         {isMaster && secaoAtiva === "base-cadu" ? (
-          <section className="card">
-            <h3>Upload base CADU (.csv)</h3>
-            <form className="form" onSubmit={subirBaseCadu}>
-              <label>
-                Arquivo base
-                <input type="file" accept=".csv" onChange={(e) => setArquivoCadu(e.target.files?.[0] || null)} />
-              </label>
-              <button type="submit" disabled={enviandoCadu}>
-                {enviandoCadu ? "Enviando..." : "Importar base CADU"}
-              </button>
-            </form>
-            {enviandoCadu ? <p className="muted">Progresso de envio: {progressoCadu}%</p> : null}
-            {retornoUploadCadu ? (
-              <p className="muted">
-                Total: {retornoUploadCadu.total} | Pessoas: {retornoUploadCadu.inseridos} | Familias:{" "}
-                {retornoUploadCadu.familias} | Ignorados CPF invalido: {retornoUploadCadu.ignoradosCpfInvalido}
-              </p>
-            ) : null}
-          </section>
+          <>
+            <section className="card">
+              <h3>Upload base CADU (.csv)</h3>
+              <form className="form" onSubmit={subirBaseCadu}>
+                <label>
+                  Arquivo base
+                  <input type="file" accept=".csv" onChange={(e) => setArquivoCadu(e.target.files?.[0] || null)} />
+                </label>
+                <button type="submit" disabled={enviandoCadu}>
+                  {enviandoCadu ? "Enviando..." : "Importar base CADU"}
+                </button>
+              </form>
+              {enviandoCadu ? <p className="muted">Progresso de envio: {progressoCadu}%</p> : null}
+              {retornoUploadCadu ? (
+                <p className="muted">
+                  Total: {retornoUploadCadu.total} | Pessoas: {retornoUploadCadu.inseridos} | Familias:{" "}
+                  {retornoUploadCadu.familias} | Ignorados CPF invalido: {retornoUploadCadu.ignoradosCpfInvalido}
+                </p>
+              ) : null}
+            </section>
+
+            <section className="card">
+              <h3>Ultima base implantada</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Arquivo</span>
+                  <strong>{caduStatus?.ultimoUpload?.nomeArquivo || "-"}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Data do upload</span>
+                  <strong>
+                    {caduStatus?.ultimoUpload?.finalizadoEm
+                      ? new Date(caduStatus.ultimoUpload.finalizadoEm).toLocaleString("pt-BR")
+                      : "-"}
+                  </strong>
+                </div>
+                <div className="metric-item">
+                  <span>Data da base (referencia)</span>
+                  <strong>
+                    {caduStatus?.dataBaseReferencia
+                      ? new Date(caduStatus.dataBaseReferencia).toLocaleDateString("pt-BR")
+                      : "-"}
+                  </strong>
+                </div>
+                <div className="metric-item">
+                  <span>Total familias</span>
+                  <strong>{caduStatus?.totalFamilias ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Total pessoas</span>
+                  <strong>{caduStatus?.totalPessoas ?? 0}</strong>
+                </div>
+              </div>
+            </section>
+          </>
         ) : null}
 
         {secaoAtiva === "visao-geral" ? (
@@ -303,7 +352,7 @@ export function DashboardPage({ usuario }) {
             <section className="card card-span-2">
               <h3>Empreendimento em foco</h3>
               <label className="fit-select">
-                <select value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
+                <select className="focus-select" value={selecionadoId} onChange={(e) => setSelecionadoId(e.target.value)}>
                   <option value="">Selecione...</option>
                   {itens.map((item) => (
                     <option key={item.id} value={item.id}>
