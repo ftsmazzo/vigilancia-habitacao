@@ -5,6 +5,7 @@ import morgan from "morgan";
 import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import empreendimentosRoutes from "./routes/empreendimentos.routes.js";
+import usuariosRoutes from "./routes/usuarios.routes.js";
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.get("/", (_req, res) => {
 
 app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/empreendimentos", empreendimentosRoutes);
 
 app.use((error, _req, res, _next) => {

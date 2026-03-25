@@ -1,11 +1,25 @@
-export function DashboardPage() {
+export function DashboardPage({ usuario }) {
   return (
-    <section className="card">
-      <h2>Dashboard Inicial</h2>
-      <p>
-        Estrutura base publicada. Proximos passos: upload CADU, empreendimentos, lista de pre-selecionados
-        e cruzamento.
-      </p>
-    </section>
+    <div className="dashboard-grid">
+      <section className="card">
+        <h2>Bem-vindo, {usuario?.nome}</h2>
+        <p className="muted">
+          Perfil atual: <strong>{usuario?.role}</strong>. O perfil MASTER administra usuarios e acessa todos os dados.
+        </p>
+      </section>
+
+      <section className="card kpi">
+        <h3>Proximo modulo</h3>
+        <p>Upload CADU</p>
+      </section>
+      <section className="card kpi">
+        <h3>Proximo modulo</h3>
+        <p>Lista de pre-selecionados</p>
+      </section>
+      <section className="card kpi">
+        <h3>Proximo modulo</h3>
+        <p>Cruzamento e metricas</p>
+      </section>
+    </div>
   );
 }

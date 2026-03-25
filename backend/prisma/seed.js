@@ -12,14 +12,14 @@ async function main() {
     where: { email: adminEmail },
     update: {
       senhaHash,
-      role: "ADMIN",
+      role: "MASTER",
       ativo: true
     },
     create: {
-      nome: "Administrador",
+      nome: "Master",
       email: adminEmail,
       senhaHash,
-      role: "ADMIN",
+      role: "MASTER",
       ativo: true
     }
   });

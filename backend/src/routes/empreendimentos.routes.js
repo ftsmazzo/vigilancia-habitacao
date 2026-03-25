@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../utils/prisma.js";
-import { requireAuth } from "../middlewares/auth.js";
+import { requireAuth, requireRole } from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -12,14 +12,22 @@ const createSchema = z.object({
   numUnidades: z.number().int().positive().optional()
 });
 
-router.get("/", requireAuth, async (_req, res) => {
+router.get("/", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
+  const where =
+    req.user.role === "HABITACAO"
+      ? {
+          criadoPorUsuarioId: req.user.sub
+        }
+      : undefined;
+
   const itens = await prisma.empreendimento.findMany({
+    where,
     orderBy: { criadoEm: "desc" }
   });
   return res.json(itens);
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({

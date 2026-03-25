@@ -1,7 +1,7 @@
 :root {
-  font-family: Segoe UI, sans-serif;
-  color: #111827;
-  background: #f9fafb;
+  font-family: "Segoe UI", sans-serif;
+  color: #e5e7eb;
+  background: #090c12;
 }
 
 * {
@@ -10,6 +10,8 @@
 
 body {
   margin: 0;
+  background: radial-gradient(circle at 15% 10%, #1e293b, #090c12 50%);
+  min-height: 100vh;
 }
 
 .topbar {
@@ -17,8 +19,17 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  border-bottom: 1px solid #e5e7eb;
-  background: white;
+  border-bottom: 1px solid #1f2937;
+  background: rgba(9, 12, 18, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+.topbar h1 {
+  margin: 0;
+}
+
+.topbar small {
+  color: #93c5fd;
 }
 
 .topbar nav {
@@ -28,7 +39,7 @@ body {
 
 .topbar a {
   text-decoration: none;
-  color: #2563eb;
+  color: #93c5fd;
 }
 
 .container {
@@ -38,10 +49,11 @@ body {
 }
 
 .card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 16px;
+  background: rgba(15, 23, 42, 0.86);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
 }
 
 .form {
@@ -55,17 +67,65 @@ body {
 }
 
 .form input {
-  padding: 8px;
-  border: 1px solid #d1d5db;
+  padding: 10px;
+  border: 1px solid #334155;
   border-radius: 6px;
+  background: #0f172a;
+  color: #f8fafc;
 }
 
 .form button {
   width: fit-content;
   border: 0;
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
   color: white;
   border-radius: 6px;
   padding: 10px 14px;
+  cursor: pointer;
+}
+
+.form button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.card-login {
+  max-width: 520px;
+  margin: 64px auto 0;
+}
+
+.muted {
+  color: #94a3b8;
+}
+
+.error-text {
+  color: #fca5a5;
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-grid .card:first-child {
+  grid-column: 1 / -1;
+}
+
+.kpi h3 {
+  margin-top: 0;
+  color: #93c5fd;
+}
+
+.ghost-btn {
+  border: 1px solid #334155;
+  background: transparent;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
   cursor: pointer;
 }

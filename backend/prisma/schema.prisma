@@ -19,6 +19,7 @@ model Usuario {
 }
 
 enum Role {
+  MASTER
   ADMIN
   HABITACAO
 }
