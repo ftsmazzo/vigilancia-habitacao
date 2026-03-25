@@ -11,10 +11,12 @@ export function DashboardPage({ usuario }) {
   const [selecionadoId, setSelecionadoId] = useState("");
   const [arquivo, setArquivo] = useState(null);
   const [arquivoCadu, setArquivoCadu] = useState(null);
+  const [arquivoBpc, setArquivoBpc] = useState(null);
   const [retornoUpload, setRetornoUpload] = useState(null);
   const [retornoUploadCadu, setRetornoUploadCadu] = useState(null);
   const [enviandoCadu, setEnviandoCadu] = useState(false);
   const [progressoCadu, setProgressoCadu] = useState(0);
+  const [enviandoBpc, setEnviandoBpc] = useState(false);
   const [executandoCruzamento, setExecutandoCruzamento] = useState(false);
   const [retornoCruzamento, setRetornoCruzamento] = useState(null);
   const [metricas, setMetricas] = useState(null);
@@ -24,10 +26,13 @@ export function DashboardPage({ usuario }) {
   const [resultadosTotal, setResultadosTotal] = useState(0);
   const [filtroStatus, setFiltroStatus] = useState("TODOS");
   const [filtroPbf, setFiltroPbf] = useState("TODOS");
+  const [filtroBpc, setFiltroBpc] = useState("TODOS");
+  const [filtroBpcTipo, setFiltroBpcTipo] = useState("TODOS");
   const [busca, setBusca] = useState("");
   const [usuarios, setUsuarios] = useState([]);
   const [overview, setOverview] = useState(null);
   const [caduStatus, setCaduStatus] = useState(null);
+  const [bpcStatus, setBpcStatus] = useState(null);
   const [usuarioForm, setUsuarioForm] = useState({
     nome: "",
     email: "",
@@ -94,11 +99,22 @@ export function DashboardPage({ usuario }) {
     }
   }
 
+  async function carregarBpcStatus() {
+    if (!isMaster) return;
+    try {
+      const { data } = await api.get("/bpc/status");
+      setBpcStatus(data);
+    } catch (_error) {
+      setErro("Falha ao carregar status da base BPC.");
+    }
+  }
+
   useEffect(() => {
     carregarEmpreendimentos();
     carregarUsuarios();
     carregarOverview();
     carregarCaduStatus();
+    carregarBpcStatus();
   }, []);
 
   useEffect(() => {
@@ -108,7 +124,7 @@ export function DashboardPage({ usuario }) {
 
   useEffect(() => {
     carregarResultadosEMetricas({ recarregarMetricas: false });
-  }, [resultadosPage, filtroStatus, filtroPbf]);
+  }, [resultadosPage, filtroStatus, filtroPbf, filtroBpc, filtroBpcTipo]);
 
   async function criarEmpreendimento(event) {
     event.preventDefault();
@@ -160,6 +176,8 @@ export function DashboardPage({ usuario }) {
       params.set("page", String(resultadosPage));
       if (filtroStatus !== "TODOS") params.set("statusVigilancia", filtroStatus);
       if (filtroPbf !== "TODOS") params.set("pbf", filtroPbf);
+      if (filtroBpc !== "TODOS") params.set("bpc", filtroBpc);
+      if (filtroBpcTipo !== "TODOS") params.set("bpcTipo", filtroBpcTipo);
       if (busca.trim()) params.set("q", busca.trim());
 
       const requests = [api.get(`/empreendimentos/${selecionadoId}/cruzamento/resultados?${params.toString()}`)];
@@ -175,6 +193,29 @@ export function DashboardPage({ usuario }) {
       setResultadosTotal(resultadosResp.total || 0);
     } catch (_error) {
       // silencioso para não quebrar fluxo inicial
+    }
+  }
+
+  async function subirBaseBpc(event) {
+    event.preventDefault();
+    setErro("");
+    setMensagem("");
+    if (!arquivoBpc) {
+      setErro("Selecione o CSV da base BPC.");
+      return;
+    }
+    try {
+      setEnviandoBpc(true);
+      const formData = new FormData();
+      formData.append("arquivo", arquivoBpc);
+      const { data } = await api.post("/bpc/upload", formData);
+      setArquivoBpc(null);
+      await carregarBpcStatus();
+      setMensagem(`Base BPC importada com sucesso. Importados: ${data.importados}`);
+    } catch (_error) {
+      setErro("Falha no upload da base BPC.");
+    } finally {
+      setEnviandoBpc(false);
     }
   }
 
@@ -430,6 +471,41 @@ export function DashboardPage({ usuario }) {
                 <div className="metric-item">
                   <span>% de atualização cadastral</span>
                   <strong>{caduStatus?.percentualAtualizacaoCadastral || "0%"}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="card">
+              <h3>Upload base BPC (.csv)</h3>
+              <form className="form" onSubmit={subirBaseBpc}>
+                <label>
+                  Arquivo BPC
+                  <input type="file" accept=".csv" onChange={(e) => setArquivoBpc(e.target.files?.[0] || null)} />
+                </label>
+                <button type="submit" disabled={enviandoBpc}>
+                  {enviandoBpc ? "Enviando..." : "Importar base BPC"}
+                </button>
+              </form>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Total BPC</span>
+                  <strong>{bpcStatus?.total ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>BPC Idoso</span>
+                  <strong>{bpcStatus?.idosos ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>BPC Deficiente</span>
+                  <strong>{bpcStatus?.deficientes ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Referencia BPC</span>
+                  <strong>
+                    {bpcStatus?.competenciaReferencia
+                      ? new Date(bpcStatus.competenciaReferencia).toLocaleDateString("pt-BR")
+                      : "-"}
+                  </strong>
                 </div>
               </div>
             </section>
@@ -701,6 +777,36 @@ export function DashboardPage({ usuario }) {
                     <option value="SEM_BOLSA">Sem bolsa</option>
                   </select>
                 </label>
+                <label>
+                  BPC
+                  <select
+                    className="enhanced-select"
+                    value={filtroBpc}
+                    onChange={(e) => {
+                      setResultadosPage(1);
+                      setFiltroBpc(e.target.value);
+                    }}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="COM_BPC">Com BPC</option>
+                    <option value="SEM_BPC">Sem BPC</option>
+                  </select>
+                </label>
+                <label>
+                  Tipo BPC
+                  <select
+                    className="enhanced-select"
+                    value={filtroBpcTipo}
+                    onChange={(e) => {
+                      setResultadosPage(1);
+                      setFiltroBpcTipo(e.target.value);
+                    }}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="IDOSO">Idoso</option>
+                    <option value="DEFICIENTE">Deficiente</option>
+                  </select>
+                </label>
                 <form className="filter-search" onSubmit={aplicarBuscaResultados}>
                   <label>
                     Busca (nome ou CPF)
@@ -719,7 +825,8 @@ export function DashboardPage({ usuario }) {
                       </strong>
                       <small className="muted">
                         {item.statusVigilancia} · {item.motivoStatus || "Sem observacao"} ·{" "}
-                        {item.recebePbfCalculado ? "Com Bolsa Familia" : "Sem Bolsa Familia"}
+                        {item.recebePbfCalculado ? "Com Bolsa Familia" : "Sem Bolsa Familia"} ·{" "}
+                        {item.recebeBpcCalculado ? `BPC ${item.tipoBpcCalculado || ""}` : "Sem BPC"}
                       </small>
                     </article>
                   ))}

@@ -265,6 +265,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
   let atualizados = 0;
   let desatualizados = 0;
   let beneficiariosPbf = 0;
+  let beneficiariosBpc = 0;
 
   for (const ps of pendentes) {
     const pessoa = await prisma.caduPessoa.findUnique({ where: { cpf: ps.cpf } });
@@ -288,6 +289,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
     const familia = pessoa.codFamiliarFam
       ? await prisma.caduFamilia.findUnique({ where: { codFamiliarFam: pessoa.codFamiliarFam } })
       : null;
+    const bpc = await prisma.bpcBeneficio.findUnique({ where: { cpf: ps.cpf } });
 
     const desatualizado = isCadastroDesatualizado(pessoa.dataAtualFam);
     const recebePbf = Boolean(pessoa.recebePbfFam || pessoa.recebePbfPessoa);
@@ -303,6 +305,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
         statusVigilancia,
         motivoStatus,
         recebePbf: recebePbf,
+        observacoes: bpc ? `BPC ${bpc.tipo}` : ps.observacoes,
         cruzadoEm: new Date()
       }
     });
@@ -322,6 +325,14 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
             composicaoFamiliar: pessoa.composicaoFamiliar,
             codFamiliarFam: pessoa.codFamiliarFam
           },
+          bpc: bpc
+            ? {
+                tipo: bpc.tipo,
+                especieBeneficio: bpc.especieBeneficio,
+                situacao: bpc.situacao,
+                competenciaPeriodo: bpc.competenciaPeriodo
+              }
+            : null,
           familia: familia
             ? {
                 codFamiliarFam: familia.codFamiliarFam,
@@ -349,6 +360,14 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
             composicaoFamiliar: pessoa.composicaoFamiliar,
             codFamiliarFam: pessoa.codFamiliarFam
           },
+          bpc: bpc
+            ? {
+                tipo: bpc.tipo,
+                especieBeneficio: bpc.especieBeneficio,
+                situacao: bpc.situacao,
+                competenciaPeriodo: bpc.competenciaPeriodo
+              }
+            : null,
           familia: familia
             ? {
                 codFamiliarFam: familia.codFamiliarFam,
@@ -366,6 +385,7 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
 
     encontrados += 1;
     if (recebePbf) beneficiariosPbf += 1;
+    if (bpc) beneficiariosBpc += 1;
     if (desatualizado) desatualizados += 1;
     else atualizados += 1;
   }
@@ -381,7 +401,8 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
         naoEncontrados,
         atualizados,
         desatualizados,
-        beneficiariosPbf
+        beneficiariosPbf,
+        beneficiariosBpc
       }
     }
   });
@@ -392,7 +413,8 @@ router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN", "HABI
     naoEncontrados,
     atualizados,
     desatualizados,
-    beneficiariosPbf
+    beneficiariosPbf,
+    beneficiariosBpc
   });
 });
 
@@ -412,6 +434,8 @@ router.get(
 
     const statusVigilancia = req.query.statusVigilancia;
     const pbf = req.query.pbf;
+    const bpc = req.query.bpc;
+    const bpcTipo = req.query.bpcTipo;
     const q = String(req.query.q || "").trim();
 
     const where = { empreendimentoId: empreendimento.id };
@@ -423,6 +447,34 @@ router.get(
         { nomeInformado: { contains: q, mode: "insensitive" } },
         { cpf: { contains: q } }
       ];
+    }
+
+    if (bpc === "COM_BPC" || bpc === "SEM_BPC" || bpcTipo === "IDOSO" || bpcTipo === "DEFICIENTE") {
+      const cpfsBaseRows = await prisma.preSelecionado.findMany({
+        where,
+        select: { cpf: true }
+      });
+      const cpfsBase = [...new Set(cpfsBaseRows.map((x) => x.cpf))];
+      if (cpfsBase.length === 0) {
+        where.cpf = { in: ["__none__"] };
+      } else {
+        const bpcWhere = {
+          cpf: { in: cpfsBase }
+        };
+        if (bpcTipo === "IDOSO" || bpcTipo === "DEFICIENTE") {
+          bpcWhere.tipo = bpcTipo;
+        }
+        const bpcRows = await prisma.bpcBeneficio.findMany({
+          where: bpcWhere,
+          select: { cpf: true }
+        });
+        const cpfsComBpc = [...new Set(bpcRows.map((x) => x.cpf))];
+        if (bpc === "SEM_BPC") {
+          where.cpf = { notIn: cpfsComBpc.length ? cpfsComBpc : [] };
+        } else {
+          where.cpf = { in: cpfsComBpc.length ? cpfsComBpc : ["__none__"] };
+        }
+      }
     }
 
     if (pbf === "COM_BOLSA" || pbf === "SEM_BOLSA") {
@@ -469,21 +521,29 @@ router.get(
     ]);
 
     const cpfsPagina = [...new Set(itens.map((item) => item.cpf))];
-    const pbfRows =
-      cpfsPagina.length > 0
-        ? await prisma.caduPessoa.findMany({
+    const [pbfRows, bpcRows] = cpfsPagina.length
+      ? await Promise.all([
+          prisma.caduPessoa.findMany({
             where: {
               cpf: { in: cpfsPagina },
               OR: [{ recebePbfFam: true }, { recebePbfPessoa: true }]
             },
             select: { cpf: true }
+          }),
+          prisma.bpcBeneficio.findMany({
+            where: { cpf: { in: cpfsPagina } },
+            select: { cpf: true, tipo: true }
           })
-        : [];
+        ])
+      : [[], []];
     const cpfsComBolsaPagina = new Set(pbfRows.map((x) => x.cpf));
+    const bpcByCpf = new Map(bpcRows.map((x) => [x.cpf, x.tipo]));
 
     const itensComPbfCalculado = itens.map((item) => ({
       ...item,
-      recebePbfCalculado: cpfsComBolsaPagina.has(item.cpf)
+      recebePbfCalculado: cpfsComBolsaPagina.has(item.cpf),
+      recebeBpcCalculado: bpcByCpf.has(item.cpf),
+      tipoBpcCalculado: bpcByCpf.get(item.cpf) || null
     }));
 
     return res.json({

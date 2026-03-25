@@ -98,6 +98,30 @@ model CaduRawLinha {
   @@index([cpfPessoa])
 }
 
+model BpcBeneficio {
+  id                   String   @id @default(uuid())
+  cpf                  String   @unique
+  nomeTitular          String?
+  numeroBeneficio      String?
+  especieBeneficio     String?
+  tipo                 BpcTipo  @default(OUTRO)
+  situacao             String?
+  cadunico             String?
+  situacaoCadastral    String?
+  dataAtualizacaoFam   DateTime?
+  competenciaPeriodo   DateTime?
+  municipio            String?
+  uf                   String?
+  importadoEm          DateTime @default(now())
+  atualizadoEm         DateTime @updatedAt
+}
+
+enum BpcTipo {
+  IDOSO
+  DEFICIENTE
+  OUTRO
+}
+
 model PreSelecionado {
   id                        String         @id @default(uuid())
   empreendimentoId          String

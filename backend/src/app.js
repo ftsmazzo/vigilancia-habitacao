@@ -8,6 +8,7 @@ import empreendimentosRoutes from "./routes/empreendimentos.routes.js";
 import usuariosRoutes from "./routes/usuarios.routes.js";
 import caduRoutes from "./routes/cadu.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
+import bpcRoutes from "./routes/bpc.routes.js";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/cadu", caduRoutes);
+app.use("/api/bpc", bpcRoutes);
 app.use("/api/empreendimentos", empreendimentosRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
