@@ -329,10 +329,80 @@ body {
   gap: 14px;
 }
 
-.reports-grid {
+.report-block-full {
+  width: 100%;
+}
+
+.report-preview-block {
+  min-height: 120px;
+}
+
+.report-preview-head h4 {
+  margin: 0 0 6px;
+}
+
+.report-preview-hint {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.report-columns-hint {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+
+.report-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #0b1220;
+}
+
+.report-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.report-preview-table th,
+.report-preview-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #1e293b;
+  white-space: nowrap;
+}
+
+.report-preview-table th {
+  background: #111827;
+  color: #bfdbfe;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.report-preview-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.report-export-form {
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
-  gap: 12px;
+  gap: 14px;
+}
+
+.switch-list--columns {
+  flex-wrap: wrap;
+  flex-direction: row;
+  display: flex;
+  gap: 10px;
+  max-height: none;
+  overflow: visible;
+}
+
+.switch-list--columns .switch-card {
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
 .inner-card {
@@ -455,9 +525,6 @@ body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .reports-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 720px) {

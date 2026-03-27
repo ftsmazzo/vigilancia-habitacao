@@ -24,14 +24,22 @@ const allowedColumns = [
   "tipoBpc"
 ];
 
-const exportSchema = z.object({
+const filterFields = z.object({
   empreendimentoId: z.string().uuid().optional(),
   statusVigilancia: z.enum(["TODOS", "NAO_ENCONTRADO", "DESATUALIZADO", "ATUALIZADO"]).optional(),
   pbf: z.enum(["TODOS", "COM_BOLSA", "SEM_BOLSA"]).optional(),
   bpc: z.enum(["TODOS", "COM_BPC", "SEM_BPC"]).optional(),
   bpcTipo: z.enum(["TODOS", "IDOSO", "DEFICIENTE"]).optional(),
-  q: z.string().optional(),
+  q: z.string().optional()
+});
+
+const exportSchema = filterFields.extend({
   columns: z.array(z.enum(allowedColumns)).min(1)
+});
+
+const previewSchema = filterFields.extend({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20)
 });
 
 function formatDate(value) {
@@ -41,17 +49,37 @@ function formatDate(value) {
   return date.toLocaleDateString("pt-BR");
 }
 
-router.post("/export-xlsx", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
-  const parsed = exportSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({
-      error: true,
-      message: "Payload invalido para exportacao",
-      code: "REPORT_INVALID_PAYLOAD"
-    });
-  }
+function buildColumnMap() {
+  return {
+    empreendimento: { label: "Empreendimento", value: (item) => item.empreendimentoNome },
+    nomeInformado: { label: "Nome Informado", value: (item) => item.nomeInformado || "" },
+    cpf: { label: "CPF", value: (item) => item.cpf || "" },
+    nisInformado: { label: "NIS Informado", value: (item) => item.nisInformado || "" },
+    contato: { label: "Contato", value: (item) => item.contato || "" },
+    statusVigilancia: { label: "Status Vigilancia", value: (item) => item.statusVigilancia || "" },
+    motivoStatus: { label: "Motivo Status", value: (item) => item.motivoStatus || "" },
+    dataAtualizacaoInscricao: {
+      label: "Data Atualizacao Inscricao",
+      value: (item) => formatDate(item.dataAtualizacaoInscricao)
+    },
+    cruzadoEm: { label: "Cruzado Em", value: (item) => formatDate(item.cruzadoEm) },
+    caduNome: { label: "Nome CADU", value: (item) => item.caduNome },
+    caduNis: { label: "NIS CADU", value: (item) => item.caduNis },
+    caduDataAtualFam: { label: "Data Atualizacao CADU", value: (item) => formatDate(item.caduDataAtualFam) },
+    recebePbf: { label: "Recebe Bolsa Familia", value: (item) => (item.recebePbfCalculado ? "SIM" : "NAO") },
+    recebeBpc: { label: "Recebe BPC", value: (item) => (item.recebeBpcCalculado ? "SIM" : "NAO") },
+    tipoBpc: { label: "Tipo BPC", value: (item) => item.tipoBpcCalculado || "" }
+  };
+}
 
-  const { empreendimentoId, statusVigilancia = "TODOS", pbf = "TODOS", bpc = "TODOS", bpcTipo = "TODOS", q = "", columns } = parsed.data;
+async function loadRelatorioItens({
+  empreendimentoId,
+  statusVigilancia = "TODOS",
+  pbf = "TODOS",
+  bpc = "TODOS",
+  bpcTipo = "TODOS",
+  q = ""
+}) {
   const where = {};
 
   if (empreendimentoId) where.empreendimentoId = empreendimentoId;
@@ -94,7 +122,7 @@ router.post("/export-xlsx", requireAuth, requireRole("MASTER", "ADMIN"), async (
   const caduByCpf = new Map(caduRows.map((row) => [row.cpf, row]));
   const bpcByCpf = new Map(bpcRows.map((row) => [row.cpf, row]));
 
-  let itens = itensBase
+  return itensBase
     .map((item) => {
       const cadu = caduByCpf.get(item.cpf);
       const bpcItem = bpcByCpf.get(item.cpf);
@@ -118,6 +146,58 @@ router.post("/export-xlsx", requireAuth, requireRole("MASTER", "ADMIN"), async (
       if (bpcTipo === "DEFICIENTE" && item.tipoBpcCalculado !== "DEFICIENTE") return false;
       return true;
     });
+}
+
+function itemToFlatRow(item, columnMap) {
+  const row = {};
+  for (const col of allowedColumns) {
+    const v = columnMap[col].value(item);
+    row[col] = v === null || v === undefined ? "" : String(v);
+  }
+  return row;
+}
+
+router.post("/preview", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
+  const parsed = previewSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: true,
+      message: "Payload invalido para pre-visualizacao",
+      code: "REPORT_PREVIEW_INVALID_PAYLOAD"
+    });
+  }
+
+  const { page, limit, ...filters } = parsed.data;
+  const itens = await loadRelatorioItens(filters);
+  const total = itens.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * limit;
+  const slice = itens.slice(start, start + limit);
+  const columnMap = buildColumnMap();
+  const itensRows = slice.map((item) => itemToFlatRow(item, columnMap));
+
+  return res.json({
+    itens: itensRows,
+    total,
+    page: safePage,
+    limit,
+    totalPages
+  });
+});
+
+router.post("/export-xlsx", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
+  const parsed = exportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: true,
+      message: "Payload invalido para exportacao",
+      code: "REPORT_INVALID_PAYLOAD"
+    });
+  }
+
+  const { columns, ...filters } = parsed.data;
+  const itens = await loadRelatorioItens(filters);
 
   if (itens.length > 50000) {
     return res.status(400).json({
@@ -127,26 +207,7 @@ router.post("/export-xlsx", requireAuth, requireRole("MASTER", "ADMIN"), async (
     });
   }
 
-  const columnMap = {
-    empreendimento: { label: "Empreendimento", value: (item) => item.empreendimentoNome },
-    nomeInformado: { label: "Nome Informado", value: (item) => item.nomeInformado || "" },
-    cpf: { label: "CPF", value: (item) => item.cpf || "" },
-    nisInformado: { label: "NIS Informado", value: (item) => item.nisInformado || "" },
-    contato: { label: "Contato", value: (item) => item.contato || "" },
-    statusVigilancia: { label: "Status Vigilancia", value: (item) => item.statusVigilancia || "" },
-    motivoStatus: { label: "Motivo Status", value: (item) => item.motivoStatus || "" },
-    dataAtualizacaoInscricao: {
-      label: "Data Atualizacao Inscricao",
-      value: (item) => formatDate(item.dataAtualizacaoInscricao)
-    },
-    cruzadoEm: { label: "Cruzado Em", value: (item) => formatDate(item.cruzadoEm) },
-    caduNome: { label: "Nome CADU", value: (item) => item.caduNome },
-    caduNis: { label: "NIS CADU", value: (item) => item.caduNis },
-    caduDataAtualFam: { label: "Data Atualizacao CADU", value: (item) => formatDate(item.caduDataAtualFam) },
-    recebePbf: { label: "Recebe Bolsa Familia", value: (item) => (item.recebePbfCalculado ? "SIM" : "NAO") },
-    recebeBpc: { label: "Recebe BPC", value: (item) => (item.recebeBpcCalculado ? "SIM" : "NAO") },
-    tipoBpc: { label: "Tipo BPC", value: (item) => item.tipoBpcCalculado || "" }
-  };
+  const columnMap = buildColumnMap();
 
   const rows = itens.map((item) => {
     const row = {};

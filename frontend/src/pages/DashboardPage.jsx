@@ -1,5 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api.js";
+
+const OPCOES_COLUNAS_RELATORIO = [
+  { key: "empreendimento", label: "Empreendimento" },
+  { key: "nomeInformado", label: "Nome informado (lista)" },
+  { key: "cpf", label: "CPF" },
+  { key: "nisInformado", label: "NIS informado (lista)" },
+  { key: "contato", label: "Contato (lista)" },
+  { key: "statusVigilancia", label: "Status vigilancia" },
+  { key: "motivoStatus", label: "Motivo status" },
+  { key: "dataAtualizacaoInscricao", label: "Data atualizacao inscricao" },
+  { key: "cruzadoEm", label: "Data do cruzamento" },
+  { key: "caduNome", label: "Nome CADU" },
+  { key: "caduNis", label: "NIS CADU" },
+  { key: "caduDataAtualFam", label: "Data atualizacao CADU" },
+  { key: "recebePbf", label: "Recebe Bolsa Familia" },
+  { key: "recebeBpc", label: "Recebe BPC" },
+  { key: "tipoBpc", label: "Tipo BPC" }
+];
+
+const LABEL_COLUNA_RELATORIO = new Map(OPCOES_COLUNAS_RELATORIO.map((o) => [o.key, o.label]));
 
 export function DashboardPage({ usuario, onUsuarioAtualizado }) {
   const isMaster = usuario?.role === "MASTER";
@@ -54,6 +74,11 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
     "recebeBpc",
     "tipoBpc"
   ]);
+  const [relatorioPreviewPage, setRelatorioPreviewPage] = useState(1);
+  const [relatorioPreviewItens, setRelatorioPreviewItens] = useState([]);
+  const [relatorioPreviewTotal, setRelatorioPreviewTotal] = useState(0);
+  const [relatorioPreviewTotalPages, setRelatorioPreviewTotalPages] = useState(1);
+  const [relatorioPreviewLoading, setRelatorioPreviewLoading] = useState(false);
   const [usuarioForm, setUsuarioForm] = useState({
     nome: "",
     email: "",
@@ -168,6 +193,72 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
   useEffect(() => {
     carregarResultadosEMetricas({ recarregarMetricas: false });
   }, [resultadosPage, filtroStatus, filtroPbf, filtroBpc, filtroBpcTipo]);
+
+  const relatorioFiltrosKey = useMemo(
+    () =>
+      JSON.stringify({
+        empreendimentoId: relatorioFiltros.empreendimentoId,
+        statusVigilancia: relatorioFiltros.statusVigilancia,
+        pbf: relatorioFiltros.pbf,
+        bpc: relatorioFiltros.bpc,
+        bpcTipo: relatorioFiltros.bpcTipo,
+        q: relatorioFiltros.q
+      }),
+    [
+      relatorioFiltros.empreendimentoId,
+      relatorioFiltros.statusVigilancia,
+      relatorioFiltros.pbf,
+      relatorioFiltros.bpc,
+      relatorioFiltros.bpcTipo,
+      relatorioFiltros.q
+    ]
+  );
+
+  const relatorioFiltrosKeyAnterior = useRef(relatorioFiltrosKey);
+
+  useEffect(() => {
+    if (secaoAtiva !== "relatorios" || !canOperate) return;
+
+    const filtrosMudaram = relatorioFiltrosKeyAnterior.current !== relatorioFiltrosKey;
+    relatorioFiltrosKeyAnterior.current = relatorioFiltrosKey;
+
+    if (filtrosMudaram && relatorioPreviewPage !== 1) {
+      setRelatorioPreviewPage(1);
+      return;
+    }
+
+    let cancelado = false;
+    (async () => {
+      setRelatorioPreviewLoading(true);
+      try {
+        const { data } = await api.post("/relatorios/preview", {
+          empreendimentoId: relatorioFiltros.empreendimentoId || undefined,
+          statusVigilancia: relatorioFiltros.statusVigilancia,
+          pbf: relatorioFiltros.pbf,
+          bpc: relatorioFiltros.bpc,
+          bpcTipo: relatorioFiltros.bpcTipo,
+          q: relatorioFiltros.q || undefined,
+          page: relatorioPreviewPage,
+          limit: 20
+        });
+        if (cancelado) return;
+        setRelatorioPreviewItens(data.itens || []);
+        setRelatorioPreviewTotal(data.total ?? 0);
+        setRelatorioPreviewTotalPages(data.totalPages ?? 1);
+      } catch (_error) {
+        if (!cancelado) {
+          setRelatorioPreviewItens([]);
+          setRelatorioPreviewTotal(0);
+          setRelatorioPreviewTotalPages(1);
+        }
+      } finally {
+        if (!cancelado) setRelatorioPreviewLoading(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [secaoAtiva, canOperate, relatorioFiltrosKey, relatorioPreviewPage]);
 
   async function criarEmpreendimento(event) {
     event.preventDefault();
@@ -487,23 +578,6 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
     return base;
   }, [isMaster, canOperate]);
   const empreendimentoSelecionado = itens.find((item) => item.id === selecionadoId);
-  const opcoesColunasRelatorio = [
-    { key: "empreendimento", label: "Empreendimento" },
-    { key: "nomeInformado", label: "Nome informado (lista)" },
-    { key: "cpf", label: "CPF" },
-    { key: "nisInformado", label: "NIS informado (lista)" },
-    { key: "contato", label: "Contato (lista)" },
-    { key: "statusVigilancia", label: "Status vigilancia" },
-    { key: "motivoStatus", label: "Motivo status" },
-    { key: "dataAtualizacaoInscricao", label: "Data atualizacao inscricao" },
-    { key: "cruzadoEm", label: "Data do cruzamento" },
-    { key: "caduNome", label: "Nome CADU" },
-    { key: "caduNis", label: "NIS CADU" },
-    { key: "caduDataAtualFam", label: "Data atualizacao CADU" },
-    { key: "recebePbf", label: "Recebe Bolsa Familia" },
-    { key: "recebeBpc", label: "Recebe BPC" },
-    { key: "tipoBpc", label: "Tipo BPC" }
-  ];
 
   function alternarColunaRelatorio(coluna) {
     setRelatorioColunas((prev) => {
@@ -1214,107 +1288,163 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
           <section className="card card-span-2 reports-shell">
             <h3>Relatorios dinamicos (XLSX)</h3>
             <p className="muted">
-              Escolha os filtros, marque os campos desejados e exporte uma lista enxuta para acao operacional.
+              Ajuste os filtros, confira a pre-visualizacao paginada (mesmas colunas da exportacao), depois exporte o XLSX completo.
             </p>
-            <form className="form" onSubmit={exportarRelatorioXlsx}>
-              <div className="reports-grid">
-                <section className="inner-card">
-                  <h4>Filtros</h4>
-                  <div className="filters-grid">
-                    <label>
-                      Empreendimento
-                      <select
-                        className="enhanced-select"
-                        value={relatorioFiltros.empreendimentoId}
-                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, empreendimentoId: e.target.value }))}
-                      >
-                        <option value="">Todos</option>
-                        {itens.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Status
-                      <select
-                        className="enhanced-select"
-                        value={relatorioFiltros.statusVigilancia}
-                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, statusVigilancia: e.target.value }))}
-                      >
-                        <option value="TODOS">Todos</option>
-                        <option value="NAO_ENCONTRADO">Nao encontrado</option>
-                        <option value="DESATUALIZADO">Desatualizado</option>
-                        <option value="ATUALIZADO">Atualizado</option>
-                      </select>
-                    </label>
-                    <label>
-                      Bolsa Familia
-                      <select
-                        className="enhanced-select"
-                        value={relatorioFiltros.pbf}
-                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, pbf: e.target.value }))}
-                      >
-                        <option value="TODOS">Todos</option>
-                        <option value="COM_BOLSA">Com bolsa</option>
-                        <option value="SEM_BOLSA">Sem bolsa</option>
-                      </select>
-                    </label>
-                    <label>
-                      BPC
-                      <select
-                        className="enhanced-select"
-                        value={relatorioFiltros.bpc}
-                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpc: e.target.value }))}
-                      >
-                        <option value="TODOS">Todos</option>
-                        <option value="COM_BPC">Com BPC</option>
-                        <option value="SEM_BPC">Sem BPC</option>
-                      </select>
-                    </label>
-                    <label>
-                      Tipo BPC
-                      <select
-                        className="enhanced-select"
-                        value={relatorioFiltros.bpcTipo}
-                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpcTipo: e.target.value }))}
-                      >
-                        <option value="TODOS">Todos</option>
-                        <option value="IDOSO">Idoso</option>
-                        <option value="DEFICIENTE">Deficiente</option>
-                      </select>
-                    </label>
-                    <label>
-                      Busca (nome ou CPF)
-                      <input
-                        value={relatorioFiltros.q}
-                        onChange={(e) => setRelatorioFiltros((s) => ({ ...s, q: e.target.value }))}
-                        placeholder="Digite para filtrar"
-                      />
-                    </label>
-                  </div>
-                </section>
 
-                <section className="inner-card">
-                  <h4>Campos da exportacao</h4>
-                  <div className="switch-list">
-                    {opcoesColunasRelatorio.map((coluna) => (
-                      <label key={coluna.key} className="switch-row switch-card">
-                        <span>{coluna.label}</span>
-                        <span className="switch">
-                          <input
-                            type="checkbox"
-                            checked={relatorioColunas.includes(coluna.key)}
-                            onChange={() => alternarColunaRelatorio(coluna.key)}
-                          />
-                          <span className="slider" />
-                        </span>
-                      </label>
+            <section className="inner-card report-block-full">
+              <h4>Filtros</h4>
+              <div className="filters-grid">
+                <label>
+                  Empreendimento
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.empreendimentoId}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, empreendimentoId: e.target.value }))}
+                  >
+                    <option value="">Todos</option>
+                    {itens.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.nome}
+                      </option>
                     ))}
-                  </div>
-                </section>
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.statusVigilancia}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, statusVigilancia: e.target.value }))}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="NAO_ENCONTRADO">Nao encontrado</option>
+                    <option value="DESATUALIZADO">Desatualizado</option>
+                    <option value="ATUALIZADO">Atualizado</option>
+                  </select>
+                </label>
+                <label>
+                  Bolsa Familia
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.pbf}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, pbf: e.target.value }))}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="COM_BOLSA">Com bolsa</option>
+                    <option value="SEM_BOLSA">Sem bolsa</option>
+                  </select>
+                </label>
+                <label>
+                  BPC
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.bpc}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpc: e.target.value }))}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="COM_BPC">Com BPC</option>
+                    <option value="SEM_BPC">Sem BPC</option>
+                  </select>
+                </label>
+                <label>
+                  Tipo BPC
+                  <select
+                    className="enhanced-select"
+                    value={relatorioFiltros.bpcTipo}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, bpcTipo: e.target.value }))}
+                  >
+                    <option value="TODOS">Todos</option>
+                    <option value="IDOSO">Idoso</option>
+                    <option value="DEFICIENTE">Deficiente</option>
+                  </select>
+                </label>
+                <label>
+                  Busca (nome ou CPF)
+                  <input
+                    value={relatorioFiltros.q}
+                    onChange={(e) => setRelatorioFiltros((s) => ({ ...s, q: e.target.value }))}
+                    placeholder="Digite para filtrar"
+                  />
+                </label>
               </div>
+            </section>
+
+            <section className="inner-card report-block-full report-preview-block">
+              <div className="report-preview-head">
+                <h4>Pre-visualizacao</h4>
+                <p className="muted report-preview-hint">
+                  As colunas abaixo espelham os campos ligados em &quot;Campos da exportacao&quot;. O arquivo XLSX inclui todos os registros filtrados (ate 50 mil linhas).
+                </p>
+              </div>
+              {relatorioPreviewLoading ? (
+                <p className="muted">Carregando amostra...</p>
+              ) : relatorioPreviewItens.length === 0 ? (
+                <p className="muted">Nenhum registro para os filtros atuais.</p>
+              ) : (
+                <div className="report-table-wrap">
+                  <table className="report-preview-table">
+                    <thead>
+                      <tr>
+                        {relatorioColunas.map((colKey) => (
+                          <th key={colKey}>{LABEL_COLUNA_RELATORIO.get(colKey) || colKey}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relatorioPreviewItens.map((row, idx) => (
+                        <tr key={`${row.cpf}-${idx}`}>
+                          {relatorioColunas.map((colKey) => (
+                            <td key={colKey}>{row[colKey] ?? ""}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="pagination-row">
+                <small className="muted">
+                  Total filtrado: {relatorioPreviewTotal} · Pagina {relatorioPreviewPage} de {relatorioPreviewTotalPages}
+                </small>
+                <div className="row-actions">
+                  <button
+                    type="button"
+                    disabled={relatorioPreviewPage <= 1 || relatorioPreviewLoading}
+                    onClick={() => setRelatorioPreviewPage((p) => Math.max(1, p - 1))}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    disabled={relatorioPreviewPage >= relatorioPreviewTotalPages || relatorioPreviewLoading}
+                    onClick={() => setRelatorioPreviewPage((p) => Math.min(relatorioPreviewTotalPages, p + 1))}
+                  >
+                    Proxima
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <form className="form report-export-form" onSubmit={exportarRelatorioXlsx}>
+              <section className="inner-card report-block-full">
+                <h4>Campos da exportacao</h4>
+                <p className="muted report-columns-hint">Ligue ou desligue colunas — a tabela acima atualiza na hora.</p>
+                <div className="switch-list switch-list--columns">
+                  {OPCOES_COLUNAS_RELATORIO.map((coluna) => (
+                    <label key={coluna.key} className="switch-row switch-card">
+                      <span>{coluna.label}</span>
+                      <span className="switch">
+                        <input
+                          type="checkbox"
+                          checked={relatorioColunas.includes(coluna.key)}
+                          onChange={() => alternarColunaRelatorio(coluna.key)}
+                        />
+                        <span className="slider" />
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </section>
 
               <button type="submit" disabled={exportandoRelatorio}>
                 {exportandoRelatorio ? "Gerando XLSX..." : "Exportar XLSX"}
