@@ -48,6 +48,8 @@ model CaduPessoa {
   cpf                String   @unique
   nomePessoa         String?
   nisPessoa          String?
+  dataNascimento     DateTime?
+  sexo               String?
   codFamiliarFam     String?
   dataAtualFam       DateTime?
   recebePbfFam       Boolean?
