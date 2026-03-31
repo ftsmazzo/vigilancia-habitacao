@@ -40,7 +40,10 @@ router.get(
       '  COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 18 AND grau_instrucao IN (\'1\',\'2\') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adultosBaixaEscolaridade" ' +
       'FROM "vw_vig_pessoas";';
 
-    const [pessoasRow] = await prisma.$queryRaw(sqlPessoas, unidadeTerritorial);
+    const [pessoasRow] = await prisma.$queryRawUnsafe(
+      sqlPessoas,
+      unidadeTerritorial
+    );
 
     const sqlFamilias =
       "SELECT " +
@@ -62,10 +65,7 @@ router.get(
       '  )::int AS "familiasAcimaMeioSalario" ' +
       'FROM "vw_vig_familias";';
 
-    const [familiasRow] = await prisma.$queryRaw(
-      sqlFamilias,
-      unidadeTerritorial
-    );
+    const [familiasRow] = await prisma.$queryRawUnsafe(sqlFamilias, unidadeTerritorial);
 
     return res.json({
       cards: {
@@ -238,7 +238,7 @@ router.get(
       "GROUP BY cod_unidade_territorial_fam " +
       'ORDER BY "nome";';
 
-    const unidades = await prisma.$queryRaw(sqlUnidades);
+    const unidades = await prisma.$queryRawUnsafe(sqlUnidades);
 
     return res.json(unidades);
   }
