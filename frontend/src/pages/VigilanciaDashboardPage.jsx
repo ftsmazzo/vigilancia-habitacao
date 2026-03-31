@@ -47,6 +47,12 @@ export function VigilanciaDashboardPage({ usuario }) {
     carregarUnidades();
   }, []);
 
+  const cards = overview?.cards || {};
+  const totalPessoas = cards.totalPessoas || 0;
+  const totalFamilias = cards.totalFamilias || 0;
+  const pct = (valor, total) =>
+    total > 0 ? `${((valor / total) * 100).toFixed(1)}%` : "0%";
+
   return (
     <div className="dashboard-shell">
       <aside className="sidebar">
@@ -72,15 +78,6 @@ export function VigilanciaDashboardPage({ usuario }) {
       <div className="dashboard-grid">
         {secaoAtiva === "visao-geral" ? (
           <>
-            {(() => {
-              const cards = overview?.cards || {};
-              const totalPessoas = cards.totalPessoas || 0;
-              const totalFamilias = cards.totalFamilias || 0;
-              const pct = (valor, total) =>
-                total > 0 ? `${((valor / total) * 100).toFixed(1)}%` : "0%";
-
-              return (
-                <>
             <section className="card">
               <h2>Bem-vindo, {usuario?.nome}</h2>
               <p className="muted">
@@ -283,10 +280,7 @@ export function VigilanciaDashboardPage({ usuario }) {
                 </div>
               </div>
             </section>
-
           </>
-              );
-            })()}
         ) : null}
 
         {secaoAtiva === "administracao" ? (
