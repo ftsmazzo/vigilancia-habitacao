@@ -60,6 +60,9 @@ router.get(
     const sqlFamilias =
       "SELECT " +
       '  COUNT(*) FILTER (' +
+      "    WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      '  )::int AS "totalFamilias",' +
+      '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam <= 218 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
@@ -82,6 +85,7 @@ router.get(
     return res.json({
       cards: {
         totalPessoas: Number(pessoasRow?.totalPessoas || 0),
+        totalFamilias: Number(familiasRow?.totalFamilias || 0),
         totalHomens: Number(pessoasRow?.totalHomens || 0),
         totalMulheres: Number(pessoasRow?.totalMulheres || 0),
         primeiraInfancia: Number(pessoasRow?.primeiraInfancia || 0),
