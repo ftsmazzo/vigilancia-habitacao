@@ -322,14 +322,16 @@ router.get(
   requireAuth,
   requireRole("MASTER", "ADMIN", "VIGILANCIA"),
   async (_req, res) => {
-    const unidades =
-      await prisma.$queryRaw`SELECT DISTINCT
-        cod_unidade_territorial_fam AS "codigo",
-        MAX(nom_localidade_fam) AS "nome"
-      FROM "vw_vig_familias"
-      WHERE cod_unidade_territorial_fam IS NOT NULL AND cod_unidade_territorial_fam <> ''
-      GROUP BY cod_unidade_territorial_fam
-      ORDER BY "nome";`;
+    const unidades = await prisma.$queryRawUnsafe(
+      'SELECT DISTINCT ' +
+        'cod_unidade_territorial_fam AS "codigo", ' +
+        'MAX(nom_localidade_fam) AS "nome" ' +
+      'FROM "vw_vig_familias" ' +
+      "WHERE cod_unidade_territorial_fam IS NOT NULL AND cod_unidade_territorial_fam <> ''" +
+      '" ' +
+      'GROUP BY cod_unidade_territorial_fam ' +
+      'ORDER BY "nome";'
+    );
 
     return res.json(unidades);
   }
