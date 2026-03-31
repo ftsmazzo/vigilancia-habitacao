@@ -11,101 +11,63 @@ router.get(
   async (req, res) => {
     const unidadeTerritorial = req.query?.unidadeTerritorial || null;
 
-    const wherePessoas =
-      unidadeTerritorial && unidadeTerritorial !== "TODOS"
-        ? prisma.$queryRaw`
-          WITH fam AS (
-            SELECT cod_familiar_fam
-            FROM "vw_vig_familias"
-            WHERE cod_unidade_territorial_fam = ${unidadeTerritorial}
-          )
-          SELECT
-            COUNT(*)::int AS "totalPessoas",
-            COUNT(*) FILTER (WHERE cod_sexo_pessoa = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalHomens",
-            COUNT(*) FILTER (WHERE cod_sexo_pessoa = '2' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalMulheres",
-            COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos < 7 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "primeiraInfancia",
-            COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "criancasAdolescentes",
-            COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 15 AND 17 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adolescentes",
-            COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 18 AND 29 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "jovens",
-            COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 30 AND 59 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adultos",
-            COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 60 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "idosos",
-            COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasComDeficiencia",
-            COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_cegueira_memb = '1' OR ind_def_baixa_visao_memb = '1') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defVisual",
-            COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_surdez_profunda_memb = '1' OR ind_def_surdez_leve_memb = '1') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defAuditiva",
-            COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND ind_def_fisica_memb = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defFisica",
-            COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_mental_memb = '1' OR ind_def_sindrome_down_memb = '1') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defIntelectual",
-            COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND ind_def_transtorno_mental_memb = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defMental",
-            COUNT(*) FILTER (WHERE ind_trabalho_infantil_pessoa = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasTrabalhoInfantil",
-            COUNT(*) FILTER (WHERE marc_sit_rua = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasSituacaoRua",
-            COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15 AND ind_frequenta_escola_memb IN ('3','4') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "criancasForaEscola",
-            COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 18 AND grau_instrucao IN ('1','2') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adultosBaixaEscolaridade"
-          FROM "vw_vig_pessoas";
-        `
-        : prisma.$queryRaw`
-          SELECT
-        COUNT(*)::int AS "totalPessoas",
-        COUNT(*) FILTER (WHERE cod_sexo_pessoa = '1')::int AS "totalHomens",
-        COUNT(*) FILTER (WHERE cod_sexo_pessoa = '2')::int AS "totalMulheres",
-        COUNT(*) FILTER (
-          WHERE idade_anos IS NOT NULL AND idade_anos < 7
-        )::int AS "primeiraInfancia",
-        COUNT(*) FILTER (
-          WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15
-        )::int AS "criancasAdolescentes",
-        COUNT(*) FILTER (
-          WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 15 AND 17
-        )::int AS "adolescentes",
-        COUNT(*) FILTER (
-          WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 18 AND 29
-        )::int AS "jovens",
-        COUNT(*) FILTER (
-          WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 30 AND 59
-        )::int AS "adultos",
-        COUNT(*) FILTER (
-          WHERE idade_anos IS NOT NULL AND idade_anos >= 60
-        )::int AS "idosos",
-        COUNT(*) FILTER (
-          WHERE cod_deficiencia_memb = '1'
-        )::int AS "pessoasComDeficiencia",
-        COUNT(*) FILTER (
-          WHERE cod_deficiencia_memb = '1'
-            AND (ind_def_cegueira_memb = '1' OR ind_def_baixa_visao_memb = '1')
-        )::int AS "defVisual",
-        COUNT(*) FILTER (
-          WHERE cod_deficiencia_memb = '1'
-            AND (ind_def_surdez_profunda_memb = '1' OR ind_def_surdez_leve_memb = '1')
-        )::int AS "defAuditiva",
-        COUNT(*) FILTER (
-          WHERE cod_deficiencia_memb = '1'
-            AND ind_def_fisica_memb = '1'
-        )::int AS "defFisica",
-        COUNT(*) FILTER (
-          WHERE cod_deficiencia_memb = '1'
-            AND (ind_def_mental_memb = '1' OR ind_def_sindrome_down_memb = '1')
-        )::int AS "defIntelectual",
-        COUNT(*) FILTER (
-          WHERE cod_deficiencia_memb = '1'
-            AND ind_def_transtorno_mental_memb = '1'
-        )::int AS "defMental",
-        COUNT(*) FILTER (
-          WHERE ind_trabalho_infantil_pessoa = '1'
-        )::int AS "pessoasTrabalhoInfantil",
-        COUNT(*) FILTER (
-          WHERE marc_sit_rua = '1'
-        )::int AS "pessoasSituacaoRua",
-        COUNT(*) FILTER (
-          WHERE idade_anos IS NOT NULL
-            AND idade_anos BETWEEN 7 AND 15
-            AND ind_frequenta_escola_memb IN ('3','4')
-        )::int AS "criancasForaEscola",
-        COUNT(*) FILTER (
-          WHERE idade_anos IS NOT NULL
-            AND idade_anos >= 18
-            AND grau_instrucao IN ('1','2')
-        )::int AS "adultosBaixaEscolaridade"
-          FROM "vw_vig_pessoas";
-
-    const [pessoasRow] = await wherePessoas;
+    let pessoasRow;
+    if (unidadeTerritorial && unidadeTerritorial !== "TODOS") {
+      const [row] = await prisma.$queryRaw`
+        WITH fam AS (
+          SELECT cod_familiar_fam
+          FROM "vw_vig_familias"
+          WHERE cod_unidade_territorial_fam = ${unidadeTerritorial}
+        )
+        SELECT
+          COUNT(*)::int AS "totalPessoas",
+          COUNT(*) FILTER (WHERE cod_sexo_pessoa = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalHomens",
+          COUNT(*) FILTER (WHERE cod_sexo_pessoa = '2' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalMulheres",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos < 7 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "primeiraInfancia",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "criancasAdolescentes",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 15 AND 17 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adolescentes",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 18 AND 29 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "jovens",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 30 AND 59 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adultos",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 60 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "idosos",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasComDeficiencia",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_cegueira_memb = '1' OR ind_def_baixa_visao_memb = '1') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defVisual",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_surdez_profunda_memb = '1' OR ind_def_surdez_leve_memb = '1') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defAuditiva",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND ind_def_fisica_memb = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defFisica",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_mental_memb = '1' OR ind_def_sindrome_down_memb = '1') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defIntelectual",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND ind_def_transtorno_mental_memb = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "defMental",
+          COUNT(*) FILTER (WHERE ind_trabalho_infantil_pessoa = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasTrabalhoInfantil",
+          COUNT(*) FILTER (WHERE marc_sit_rua = '1' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasSituacaoRua",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15 AND ind_frequenta_escola_memb IN ('3','4') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "criancasForaEscola",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 18 AND grau_instrucao IN ('1','2') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adultosBaixaEscolaridade"
+        FROM "vw_vig_pessoas";
+      `;
+      pessoasRow = row;
+    } else {
+      const [row] = await prisma.$queryRaw`
+        SELECT
+          COUNT(*)::int AS "totalPessoas",
+          COUNT(*) FILTER (WHERE cod_sexo_pessoa = '1')::int AS "totalHomens",
+          COUNT(*) FILTER (WHERE cod_sexo_pessoa = '2')::int AS "totalMulheres",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos < 7)::int AS "primeiraInfancia",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15)::int AS "criancasAdolescentes",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 15 AND 17)::int AS "adolescentes",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 18 AND 29)::int AS "jovens",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 30 AND 59)::int AS "adultos",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 60)::int AS "idosos",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1')::int AS "pessoasComDeficiencia",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_cegueira_memb = '1' OR ind_def_baixa_visao_memb = '1'))::int AS "defVisual",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_surdez_profunda_memb = '1' OR ind_def_surdez_leve_memb = '1'))::int AS "defAuditiva",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND ind_def_fisica_memb = '1')::int AS "defFisica",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND (ind_def_mental_memb = '1' OR ind_def_sindrome_down_memb = '1'))::int AS "defIntelectual",
+          COUNT(*) FILTER (WHERE cod_deficiencia_memb = '1' AND ind_def_transtorno_mental_memb = '1')::int AS "defMental",
+          COUNT(*) FILTER (WHERE ind_trabalho_infantil_pessoa = '1')::int AS "pessoasTrabalhoInfantil",
+          COUNT(*) FILTER (WHERE marc_sit_rua = '1')::int AS "pessoasSituacaoRua",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15 AND ind_frequenta_escola_memb IN ('3','4'))::int AS "criancasForaEscola",
+          COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 18 AND grau_instrucao IN ('1','2'))::int AS "adultosBaixaEscolaridade"
+        FROM "vw_vig_pessoas";
+      `;
+      pessoasRow = row;
+    }
 
     const [familiasRow] =
       await prisma.$queryRaw`
