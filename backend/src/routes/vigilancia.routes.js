@@ -283,8 +283,12 @@ router.post(
         }
       }
 
-      await prisma.$executeRawUnsafe(`REFRESH MATERIALIZED VIEW "vw_vig_familias";`);
-      await prisma.$executeRawUnsafe(`REFRESH MATERIALIZED VIEW "vw_vig_pessoas";`);
+      await prisma.$executeRawUnsafe(
+        'REFRESH MATERIALIZED VIEW "vw_vig_familias";'
+      );
+      await prisma.$executeRawUnsafe(
+        'REFRESH MATERIALIZED VIEW "vw_vig_pessoas";'
+      );
 
       const fim = Date.now();
 
