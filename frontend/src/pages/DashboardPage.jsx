@@ -677,6 +677,34 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
             </section>
 
             <section className="card">
+              <h3>Atualizar bases de vigilancia</h3>
+              <p className="muted">
+                Apos importar novas bases CADU e BPC, atualize as views de vigilancia (familias e pessoas) para refletir os dados
+                mais recentes usados nos paineis e relatorios.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  setErro("");
+                  setMensagem("");
+                  try {
+                    const { data } = await api.post("/vigilancia/atualizar-bases");
+                    const duracaoSeg = data?.duracaoMs ? Math.round(data.duracaoMs / 1000) : null;
+                    setMensagem(
+                      duracaoSeg !== null
+                        ? `Bases de vigilancia atualizadas com sucesso em ${duracaoSeg} segundos.`
+                        : "Bases de vigilancia atualizadas com sucesso."
+                    );
+                  } catch (_error) {
+                    setErro("Falha ao atualizar as bases de vigilancia.");
+                  }
+                }}
+              >
+                Atualizar bases de vigilancia
+              </button>
+            </section>
+
+            <section className="card">
               <h3>Ultima base implantada</h3>
               <div className="metrics-grid">
                 <div className="metric-item">
