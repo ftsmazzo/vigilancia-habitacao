@@ -228,15 +228,16 @@ router.get(
   requireAuth,
   requireRole("MASTER", "ADMIN", "VIGILANCIA"),
   async (_req, res) => {
-    const sqlUnidades =
-      "SELECT DISTINCT " +
-      '  (cf."rawDadosTxt"::jsonb ->> ''d.cod_unidade_territorial_fam'') AS "codigo", ' +
-      '  MAX(cf."rawDadosTxt"::jsonb ->> ''d.nom_unidade_territorial_fam'') AS "nome" ' +
-      'FROM "CaduFamilia" cf ' +
-      "WHERE (cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_unidade_territorial_fam') IS NOT NULL " +
-      "  AND (cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_unidade_territorial_fam') <> '' " +
-      'GROUP BY (cf."rawDadosTxt"::jsonb ->> ''d.cod_unidade_territorial_fam'') ' +
-      'ORDER BY "nome";';
+    const sqlUnidades = `
+      SELECT DISTINCT
+        (cf."rawDadosTxt"::jsonb ->> 'd.cod_unidade_territorial_fam') AS "codigo",
+        MAX(cf."rawDadosTxt"::jsonb ->> 'd.nom_unidade_territorial_fam') AS "nome"
+      FROM "CaduFamilia" cf
+      WHERE (cf."rawDadosTxt"::jsonb ->> 'd.cod_unidade_territorial_fam') IS NOT NULL
+        AND (cf."rawDadosTxt"::jsonb ->> 'd.cod_unidade_territorial_fam') <> ''
+      GROUP BY (cf."rawDadosTxt"::jsonb ->> 'd.cod_unidade_territorial_fam')
+      ORDER BY "nome";
+    `;
 
     const unidades = await prisma.$queryRawUnsafe(sqlUnidades);
 
