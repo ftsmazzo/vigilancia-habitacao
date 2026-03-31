@@ -16,12 +16,12 @@ router.get(
         COUNT(*) FILTER (WHERE ("dadosTxt"::jsonb ->> 'p.cod_sexo_pessoa') = '2')::int AS "totalMulheres",
         COUNT(*) FILTER (
           WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) < 6
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) < 7
         )::int AS "primeiraInfancia",
         COUNT(*) FILTER (
           WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 6
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) < 15
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 7
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 15
         )::int AS "criancasAdolescentes",
         COUNT(*) FILTER (
           WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
