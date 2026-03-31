@@ -12,38 +12,38 @@ router.get(
     const [pessoasRow] =
       await prisma.$queryRaw`SELECT
         COUNT(*)::int AS "totalPessoas",
-        COUNT(*) FILTER (WHERE (dadosTxt::jsonb ->> 'p.cod_sexo_pessoa') = '1')::int AS "totalHomens",
-        COUNT(*) FILTER (WHERE (dadosTxt::jsonb ->> 'p.cod_sexo_pessoa') = '2')::int AS "totalMulheres",
+        COUNT(*) FILTER (WHERE ("dadosTxt"::jsonb ->> 'p.cod_sexo_pessoa') = '1')::int AS "totalHomens",
+        COUNT(*) FILTER (WHERE ("dadosTxt"::jsonb ->> 'p.cod_sexo_pessoa') = '2')::int AS "totalMulheres",
         COUNT(*) FILTER (
-          WHERE (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) < 6
+          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) < 6
         )::int AS "primeiraInfancia",
         COUNT(*) FILTER (
-          WHERE (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 6
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) < 15
+          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 6
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) < 15
         )::int AS "criancasAdolescentes",
         COUNT(*) FILTER (
-          WHERE (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 15
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 17
+          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 15
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 17
         )::int AS "adolescentes",
         COUNT(*) FILTER (
-          WHERE (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 18
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 29
+          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 18
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 29
         )::int AS "jovens",
         COUNT(*) FILTER (
-          WHERE (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 30
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 59
+          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 30
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 59
         )::int AS "adultos",
         COUNT(*) FILTER (
-          WHERE (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, (dadosTxt::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 60
+          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
+            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 60
         )::int AS "idosos",
         COUNT(*) FILTER (
-          WHERE (dadosTxt::jsonb ->> 'p.cod_deficiencia_memb') = '1'
+          WHERE ("dadosTxt"::jsonb ->> 'p.cod_deficiencia_memb') = '1'
         )::int AS "pessoasComDeficiencia"
       FROM "CaduRawLinha";`;
 
