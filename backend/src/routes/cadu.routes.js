@@ -270,7 +270,7 @@ router.post("/upload/finalize", requireAuth, requireRole("MASTER"), async (req, 
   return res.json(result);
 });
 
-router.get("/status", requireAuth, requireRole("MASTER", "ADMIN"), async (_req, res) => {
+router.get("/status", requireAuth, requireRole("MASTER", "ADMIN", "VIGILANCIA"), async (_req, res) => {
   const limiteAtualizacao = new Date();
   limiteAtualizacao.setMonth(limiteAtualizacao.getMonth() - mesesAtualizacao);
 

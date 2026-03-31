@@ -112,7 +112,7 @@ router.post("/upload", requireAuth, requireRole("MASTER"), upload.single("arquiv
   });
 });
 
-router.get("/status", requireAuth, requireRole("MASTER", "ADMIN"), async (_req, res) => {
+router.get("/status", requireAuth, requireRole("MASTER", "ADMIN", "VIGILANCIA"), async (_req, res) => {
   const [total, idosos, deficientes, ultimo] = await Promise.all([
     prisma.bpcBeneficio.count(),
     prisma.bpcBeneficio.count({ where: { tipo: "IDOSO" } }),
