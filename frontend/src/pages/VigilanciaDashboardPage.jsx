@@ -8,6 +8,9 @@ export function VigilanciaDashboardPage({ usuario }) {
   const [overview, setOverview] = useState(null);
   const [atualizandoBases, setAtualizandoBases] = useState(false);
   const [mensagem, setMensagem] = useState("");
+  const [secaoAtiva, setSecaoAtiva] = useState("visao-geral");
+  const [unidades, setUnidades] = useState([]);
+  const [unidadeSelecionada, setUnidadeSelecionada] = useState("TODOS");
 
   useEffect(() => {
     async function carregar() {
@@ -16,7 +19,11 @@ export function VigilanciaDashboardPage({ usuario }) {
         const [caduResp, bpcResp, overviewResp] = await Promise.all([
           api.get("/cadu/status"),
           api.get("/bpc/status"),
-          api.get("/vigilancia/overview")
+          api.get(
+            unidadeSelecionada && unidadeSelecionada !== "TODOS"
+              ? `/vigilancia/overview?unidadeTerritorial=${encodeURIComponent(unidadeSelecionada)}`
+              : "/vigilancia/overview"
+          )
         ]);
         setCaduStatus(caduResp.data);
         setBpcStatus(bpcResp.data);
@@ -26,6 +33,18 @@ export function VigilanciaDashboardPage({ usuario }) {
       }
     }
     carregar();
+  }, [unidadeSelecionada]);
+
+  useEffect(() => {
+    async function carregarUnidades() {
+      try {
+        const { data } = await api.get("/vigilancia/unidades");
+        setUnidades(data || []);
+      } catch {
+        // silencioso: se falhar, apenas nao mostra seletor
+      }
+    }
+    carregarUnidades();
   }, []);
 
   return (
@@ -33,54 +52,58 @@ export function VigilanciaDashboardPage({ usuario }) {
       <aside className="sidebar">
         <h3>Vigilancia</h3>
         <nav className="sidebar-nav">
-          <button type="button" className="sidebar-item active">
+          <button
+            type="button"
+            className={secaoAtiva === "visao-geral" ? "sidebar-item active" : "sidebar-item"}
+            onClick={() => setSecaoAtiva("visao-geral")}
+          >
             Visao geral
+          </button>
+          <button
+            type="button"
+            className={secaoAtiva === "administracao" ? "sidebar-item active" : "sidebar-item"}
+            onClick={() => setSecaoAtiva("administracao")}
+          >
+            Administracao
           </button>
         </nav>
       </aside>
 
       <div className="dashboard-grid">
-        <section className="card">
-          <h2>Bem-vindo, {usuario?.nome}</h2>
-          <p className="muted">
-            Perfil atual: <strong>{usuario?.role}</strong>. Este painel mostra apenas informacoes gerais de CADU/BPC.
-          </p>
-          {mensagem ? <p className="success-text">{mensagem}</p> : null}
-          {erro ? <p className="error-text">{erro}</p> : null}
-        </section>
+        {secaoAtiva === "visao-geral" ? (
+          <>
+            <section className="card">
+              <h2>Bem-vindo, {usuario?.nome}</h2>
+              <p className="muted">
+                Perfil atual: <strong>{usuario?.role}</strong>. Este painel mostra informacoes agregadas de CADU/BPC para
+                vigilancia socioassistencial.
+              </p>
+              {mensagem ? <p className="success-text">{mensagem}</p> : null}
+              {erro ? <p className="error-text">{erro}</p> : null}
+            </section>
 
-        <section className="card">
-          <h3>Base de Vigilancia (familias e pessoas)</h3>
-          <p className="muted">
-            Sempre que uma nova base CADU ou BPC for importada, atualize as estruturas de vigilancia para refletir os dados mais recentes.
-          </p>
-          <button
-            type="button"
-            disabled={atualizandoBases}
-            onClick={async () => {
-              setErro("");
-              setMensagem("");
-              setAtualizandoBases(true);
-              try {
-                const { data } = await api.post("/vigilancia/atualizar-bases");
-                const duracaoSeg = data?.duracaoMs ? Math.round(data.duracaoMs / 1000) : null;
-                setMensagem(
-                  duracaoSeg !== null
-                    ? `Bases de vigilancia atualizadas com sucesso em ${duracaoSeg} segundos.`
-                    : "Bases de vigilancia atualizadas com sucesso."
-                );
-              } catch (_error) {
-                setErro("Falha ao atualizar as bases de vigilancia.");
-              } finally {
-                setAtualizandoBases(false);
-              }
-            }}
-          >
-            {atualizandoBases ? "Atualizando bases..." : "Atualizar bases de vigilancia"}
-          </button>
-        </section>
+            <section className="card">
+              <h3>Area do CRAS</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Selecione a unidade territorial (CRAS)</span>
+                  <select
+                    className="enhanced-select"
+                    value={unidadeSelecionada}
+                    onChange={(e) => setUnidadeSelecionada(e.target.value || "TODOS")}
+                  >
+                    <option value="TODOS">Todos os CRAS</option>
+                    {unidades.map((u) => (
+                      <option key={u.codigo} value={u.codigo}>
+                        {u.nome || u.codigo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </section>
 
-        <section className="card">
+            <section className="card">
           <h3>Base CADU</h3>
           <div className="metrics-grid">
             <div className="metric-item">
@@ -102,7 +125,7 @@ export function VigilanciaDashboardPage({ usuario }) {
           </div>
         </section>
 
-        <section className="card">
+            <section className="card">
           <h3>Distribuicao por sexo</h3>
           <div className="metrics-grid">
             <div className="metric-item">
@@ -120,11 +143,11 @@ export function VigilanciaDashboardPage({ usuario }) {
           </div>
         </section>
 
-        <section className="card">
+            <section className="card">
           <h3>Faixas etarias (CADU)</h3>
           <div className="metrics-grid">
             <div className="metric-item">
-              <span>Primeira infancia (0 a 5 anos)</span>
+              <span>Primeira infancia (0 a 6 anos)</span>
               <strong>{overview?.cards?.primeiraInfancia ?? 0}</strong>
             </div>
             <div className="metric-item">
@@ -150,7 +173,7 @@ export function VigilanciaDashboardPage({ usuario }) {
           </div>
         </section>
 
-        <section className="card">
+            <section className="card">
           <h3>Situacoes especificas</h3>
           <div className="metrics-grid">
             <div className="metric-item">
@@ -164,7 +187,7 @@ export function VigilanciaDashboardPage({ usuario }) {
           </div>
         </section>
 
-        <section className="card">
+            <section className="card">
           <h3>Deficiencias (CADU)</h3>
           <div className="metrics-grid">
             <div className="metric-item">
@@ -194,7 +217,7 @@ export function VigilanciaDashboardPage({ usuario }) {
           </div>
         </section>
 
-        <section className="card">
+            <section className="card">
           <h3>Faixas de renda familiar per capita</h3>
           <div className="metrics-grid">
             <div className="metric-item">
@@ -212,7 +235,7 @@ export function VigilanciaDashboardPage({ usuario }) {
           </div>
         </section>
 
-        <section className="card">
+            <section className="card">
           <h3>Populacoes prioritarias</h3>
           <div className="metrics-grid">
             <div className="metric-item">
@@ -234,7 +257,7 @@ export function VigilanciaDashboardPage({ usuario }) {
           </div>
         </section>
 
-        <section className="card">
+            <section className="card">
           <h3>Base BPC</h3>
           <div className="metrics-grid">
             <div className="metric-item">
@@ -250,7 +273,54 @@ export function VigilanciaDashboardPage({ usuario }) {
               <strong>{bpcStatus?.deficientes ?? 0}</strong>
             </div>
           </div>
-        </section>
+            </section>
+          </>
+        ) : null}
+
+        {secaoAtiva === "administracao" ? (
+          <>
+            <section className="card">
+              <h2>Administracao de vigilancia</h2>
+              <p className="muted">
+                Operacoes de manutencao das views e estruturas de vigilancia. Use apenas apos importar novas bases CADU e BPC.
+              </p>
+              {mensagem ? <p className="success-text">{mensagem}</p> : null}
+              {erro ? <p className="error-text">{erro}</p> : null}
+            </section>
+
+            <section className="card">
+              <h3>Base de Vigilancia (familias e pessoas)</h3>
+              <p className="muted">
+                Sempre que uma nova base CADU ou BPC for importada, atualize as estruturas de vigilancia para refletir os dados
+                mais recentes.
+              </p>
+              <button
+                type="button"
+                disabled={atualizandoBases}
+                onClick={async () => {
+                  setErro("");
+                  setMensagem("");
+                  setAtualizandoBases(true);
+                  try {
+                    const { data } = await api.post("/vigilancia/atualizar-bases");
+                    const duracaoSeg = data?.duracaoMs ? Math.round(data.duracaoMs / 1000) : null;
+                    setMensagem(
+                      duracaoSeg !== null
+                        ? `Bases de vigilancia atualizadas com sucesso em ${duracaoSeg} segundos.`
+                        : "Bases de vigilancia atualizadas com sucesso."
+                    );
+                  } catch (_error) {
+                    setErro("Falha ao atualizar as bases de vigilancia.");
+                  } finally {
+                    setAtualizandoBases(false);
+                  }
+                }}
+              >
+                {atualizandoBases ? "Atualizando bases..." : "Atualizar bases de vigilancia"}
+              </button>
+            </section>
+          </>
+        ) : null}
       </div>
     </div>
   );
