@@ -128,66 +128,66 @@ router.post(
     try {
       // Garante que as materialized views existam (cria e ignora erro se ja existirem)
       try {
-        await prisma.$executeRawUnsafe(`
-          CREATE MATERIALIZED VIEW "vw_vig_familias" AS
-          SELECT
-            cf."codFamiliarFam" AS cod_familiar_fam,
-            NULLIF(cf."rawDadosTxt"::jsonb ->> 'd.dat_cadastramento_fam', '')::date AS dat_cadastramento_fam,
-            cf."dataAtualFam" AS dat_atual_fam,
-            NULLIF(cf."rawDadosTxt"::jsonb ->> 'd.dta_entrevista_fam', '')::date AS dta_entrevista_fam,
-            (cf."rawDadosTxt"::jsonb ->> 'd.cod_forma_coleta_fam') AS cod_forma_coleta_fam,
-            CASE (cf."rawDadosTxt"::jsonb ->> 'd.cod_forma_coleta_fam')
-              WHEN '0' THEN 'Informacao migrada como inexistente'
-              WHEN '1' THEN 'Sem visita domiciliar'
-              WHEN '2' THEN 'Com visita domiciliar'
-              ELSE 'Nao informado'
-            END AS forma_coleta_descricao,
-            (cf."rawDadosTxt"::jsonb ->> 'd.nom_localidade_fam') AS nom_localidade_fam,
-            (cf."rawDadosTxt"::jsonb ->> 'd.num_cep_logradouro_fam') AS num_cep_logradouro_fam,
-            (cf."rawDadosTxt"::jsonb ->> 'd.cod_unidade_territorial_fam') AS cod_unidade_territorial_fam,
-            cf."rendaPerCapitaFam" AS vlr_renda_media_fam,
-            (cf."rawDadosTxt"::jsonb ->> 'd.vlr_renda_total_fam')::numeric AS vlr_renda_total_fam,
-            (cf."rawDadosTxt"::jsonb ->> 'd.marc_pbf') AS marc_pbf,
-            CASE (cf."rawDadosTxt"::jsonb ->> 'd.marc_pbf')
-              WHEN '0' THEN 'Nao'
-              WHEN '1' THEN 'Sim'
-              ELSE 'Nao informado'
-            END AS familia_recebe_pbf_descricao,
-            ((cf."rawDadosTxt"::jsonb ->> 'd.marc_pbf') = '1') AS familia_recebe_pbf,
-            (cf."rawDadosTxt"::jsonb ->> 'd.cod_familia_indigena_fam') AS cod_familia_indigena_fam,
-            CASE (cf."rawDadosTxt"::jsonb ->> 'd.cod_familia_indigena_fam')
-              WHEN '1' THEN 'Sim'
-              WHEN '2' THEN 'Nao'
-              ELSE 'Nao informado'
-            END AS familia_indigena_descricao,
-            ((cf."rawDadosTxt"::jsonb ->> 'd.cod_familia_indigena_fam') = '1') AS familia_indigena,
-            (cf."rawDadosTxt"::jsonb ->> 'd.ind_familia_quilombola_fam') AS ind_familia_quilombola_fam,
-            CASE (cf."rawDadosTxt"::jsonb ->> 'd.ind_familia_quilombola_fam')
-              WHEN '1' THEN 'Sim'
-              WHEN '2' THEN 'Nao'
-              ELSE 'Nao informado'
-            END AS familia_quilombola_descricao,
-            ((cf."rawDadosTxt"::jsonb ->> 'd.ind_familia_quilombola_fam') = '1') AS familia_quilombola,
-            (cf."rawDadosTxt"::jsonb ->> 'd.ind_risco_scl_vlco_drts') AS ind_risco_scl_vlco_drts,
-            CASE (cf."rawDadosTxt"::jsonb ->> 'd.ind_risco_scl_vlco_drts')
-              WHEN '1' THEN 'Sim'
-              WHEN '2' THEN 'Nao'
-              ELSE 'Nao informado'
-            END AS familia_risco_violacao_direitos_descricao,
-            ((cf."rawDadosTxt"::jsonb ->> 'd.ind_risco_scl_vlco_drts') = '1') AS familia_risco_violacao_direitos,
-            (cf."rawDadosTxt"::jsonb ->> 'd.ind_risco_scl_inseg_alim') AS ind_risco_scl_inseg_alim,
-            CASE (cf."rawDadosTxt"::jsonb ->> 'd.ind_risco_scl_inseg_alim')
-              WHEN '1' THEN 'Sim'
-              WHEN '2' THEN 'Nao'
-              ELSE 'Nao informado'
-            END AS familia_risco_inseg_alim_descricao,
-            ((cf."rawDadosTxt"::jsonb ->> 'd.ind_risco_scl_inseg_alim') = '1') AS familia_risco_inseg_alim,
-            CASE
-              WHEN cf."rendaPerCapitaFam" IS NOT NULL AND cf."rendaPerCapitaFam" <= 810.5 THEN TRUE
-              ELSE FALSE
-            END AS familia_pobreza_meio_salario
-          FROM "CaduFamilia" cf;
-        `);
+        await prisma.$executeRawUnsafe(
+          'CREATE MATERIALIZED VIEW "vw_vig_familias" AS ' +
+            'SELECT ' +
+            'cf."codFamiliarFam" AS cod_familiar_fam, ' +
+            'NULLIF(cf."rawDadosTxt"::jsonb ->> ''d.dat_cadastramento_fam'', '''')::date AS dat_cadastramento_fam, ' +
+            'cf."dataAtualFam" AS dat_atual_fam, ' +
+            'NULLIF(cf."rawDadosTxt"::jsonb ->> ''d.dta_entrevista_fam'', '''')::date AS dta_entrevista_fam, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.cod_forma_coleta_fam'') AS cod_forma_coleta_fam, ' +
+            'CASE (cf."rawDadosTxt"::jsonb ->> ''d.cod_forma_coleta_fam'') ' +
+              'WHEN ''0'' THEN ''Informacao migrada como inexistente'' ' +
+              'WHEN ''1'' THEN ''Sem visita domiciliar'' ' +
+              'WHEN ''2'' THEN ''Com visita domiciliar'' ' +
+              'ELSE ''Nao informado'' ' +
+            'END AS forma_coleta_descricao, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.nom_localidade_fam'') AS nom_localidade_fam, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.num_cep_logradouro_fam'') AS num_cep_logradouro_fam, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.cod_unidade_territorial_fam'') AS cod_unidade_territorial_fam, ' +
+            'cf."rendaPerCapitaFam" AS vlr_renda_media_fam, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.vlr_renda_total_fam'')::numeric AS vlr_renda_total_fam, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.marc_pbf'') AS marc_pbf, ' +
+            'CASE (cf."rawDadosTxt"::jsonb ->> ''d.marc_pbf'') ' +
+              'WHEN ''0'' THEN ''Nao'' ' +
+              'WHEN ''1'' THEN ''Sim'' ' +
+              'ELSE ''Nao informado'' ' +
+            'END AS familia_recebe_pbf_descricao, ' +
+            '((cf."rawDadosTxt"::jsonb ->> ''d.marc_pbf'') = ''1'') AS familia_recebe_pbf, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.cod_familia_indigena_fam'') AS cod_familia_indigena_fam, ' +
+            'CASE (cf."rawDadosTxt"::jsonb ->> ''d.cod_familia_indigena_fam'') ' +
+              'WHEN ''1'' THEN ''Sim'' ' +
+              'WHEN ''2'' THEN ''Nao'' ' +
+              'ELSE ''Nao informado'' ' +
+            'END AS familia_indigena_descricao, ' +
+            '((cf."rawDadosTxt"::jsonb ->> ''d.cod_familia_indigena_fam'') = ''1'') AS familia_indigena, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.ind_familia_quilombola_fam'') AS ind_familia_quilombola_fam, ' +
+            'CASE (cf."rawDadosTxt"::jsonb ->> ''d.ind_familia_quilombola_fam'') ' +
+              'WHEN ''1'' THEN ''Sim'' ' +
+              'WHEN ''2'' THEN ''Nao'' ' +
+              'ELSE ''Nao informado'' ' +
+            'END AS familia_quilombola_descricao, ' +
+            '((cf."rawDadosTxt"::jsonb ->> ''d.ind_familia_quilombola_fam'') = ''1'') AS familia_quilombola, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.ind_risco_scl_vlco_drts'') AS ind_risco_scl_vlco_drts, ' +
+            'CASE (cf."rawDadosTxt"::jsonb ->> ''d.ind_risco_scl_vlco_drts'') ' +
+              'WHEN ''1'' THEN ''Sim'' ' +
+              'WHEN ''2'' THEN ''Nao'' ' +
+              'ELSE ''Nao informado'' ' +
+            'END AS familia_risco_violacao_direitos_descricao, ' +
+            '((cf."rawDadosTxt"::jsonb ->> ''d.ind_risco_scl_vlco_drts'') = ''1'') AS familia_risco_violacao_direitos, ' +
+            '(cf."rawDadosTxt"::jsonb ->> ''d.ind_risco_scl_inseg_alim'') AS ind_risco_scl_inseg_alim, ' +
+            'CASE (cf."rawDadosTxt"::jsonb ->> ''d.ind_risco_scl_inseg_alim'') ' +
+              'WHEN ''1'' THEN ''Sim'' ' +
+              'WHEN ''2'' THEN ''Nao'' ' +
+              'ELSE ''Nao informado'' ' +
+            'END AS familia_risco_inseg_alim_descricao, ' +
+            '((cf."rawDadosTxt"::jsonb ->> ''d.ind_risco_scl_inseg_alim'') = ''1'') AS familia_risco_inseg_alim, ' +
+            'CASE ' +
+              'WHEN cf."rendaPerCapitaFam" IS NOT NULL AND cf."rendaPerCapitaFam" <= 810.5 THEN TRUE ' +
+              'ELSE FALSE ' +
+            'END AS familia_pobreza_meio_salario ' +
+          'FROM "CaduFamilia" cf;'
+        );
       } catch (error) {
         // relacao ja existe -> ignora, vamos apenas dar REFRESH depois
         if (!String(error.message || "").includes("already exists")) {
@@ -196,87 +196,87 @@ router.post(
       }
 
       try {
-        await prisma.$executeRawUnsafe(`
-          CREATE MATERIALIZED VIEW "vw_vig_pessoas" AS
-          SELECT
-            crl.id AS linha_id,
-            (crl."dadosTxt"::jsonb ->> 'p.cod_familiar_fam') AS cod_familiar_fam,
-            (crl."dadosTxt"::jsonb ->> 'p.nom_pessoa') AS nom_pessoa,
-            (crl."dadosTxt"::jsonb ->> 'p.num_nis_pessoa_atual') AS num_nis_pessoa_atual,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_trabalho_infantil_pessoa') AS ind_trabalho_infantil_pessoa,
-            (crl."dadosTxt"::jsonb ->> 'p.marc_sit_rua') AS marc_sit_rua,
-            (crl."dadosTxt"::jsonb ->> 'p.cod_sexo_pessoa') AS cod_sexo_pessoa,
-            NULLIF(crl."dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa', '')::date AS dta_nasc_pessoa,
-            (crl."dadosTxt"::jsonb ->> 'p.cod_parentesco_rf_pessoa') AS cod_parentesco_rf_pessoa,
-            (crl."dadosTxt"::jsonb ->> 'p.cod_raca_cor_pessoa') AS cod_raca_cor_pessoa,
-            (crl."dadosTxt"::jsonb ->> 'p.marc_pbf') AS marc_pbf,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_identidade_genero') AS ind_identidade_genero,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_transgenero') AS ind_transgenero,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_tipo_identidade_genero') AS ind_tipo_identidade_genero,
-            (crl."dadosTxt"::jsonb ->> 'p.cod_deficiencia_memb') AS cod_deficiencia_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_def_cegueira_memb') AS ind_def_cegueira_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_def_baixa_visao_memb') AS ind_def_baixa_visao_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_def_surdez_profunda_memb') AS ind_def_surdez_profunda_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_def_surdez_leve_memb') AS ind_def_surdez_leve_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_def_fisica_memb') AS ind_def_fisica_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_def_mental_memb') AS ind_def_mental_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_def_sindrome_down_memb') AS ind_def_sindrome_down_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_def_transtorno_mental_memb') AS ind_def_transtorno_mental_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_ajuda_nao_memb') AS ind_ajuda_nao_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_ajuda_familia_memb') AS ind_ajuda_familia_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_ajuda_especializado_memb') AS ind_ajuda_especializado_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_ajuda_vizinho_memb') AS ind_ajuda_vizinho_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_ajuda_instituicao_memb') AS ind_ajuda_instituicao_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_ajuda_outra_memb') AS ind_ajuda_outra_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.cod_sabe_ler_escrever_memb') AS cod_sabe_ler_escrever_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.ind_frequenta_escola_memb') AS ind_frequenta_escola_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.nom_escola_memb') AS nom_escola_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.cod_escola_local_memb') AS cod_escola_local_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.cod_curso_frequenta_memb') AS cod_curso_frequenta_memb,
-            (crl."dadosTxt"::jsonb ->> 'p.grau_instrucao') AS grau_instrucao,
-            LPAD(
-              REGEXP_REPLACE(crl."dadosTxt"::jsonb ->> 'p.num_cpf_pessoa', '\\D', '', 'g'),
-              11,
-              '0'
-            ) AS cpf_normalizado,
-            EXISTS (
-              SELECT 1 FROM "BpcBeneficio" b
-              WHERE b.cpf = LPAD(
-                REGEXP_REPLACE(crl."dadosTxt"::jsonb ->> 'p.num_cpf_pessoa', '\\D', '', 'g'),
-                11,
-                '0'
-              )
-            ) AS tem_bpc,
-            EXISTS (
-              SELECT 1 FROM "BpcBeneficio" b
-              WHERE b.cpf = LPAD(
-                REGEXP_REPLACE(crl."dadosTxt"::jsonb ->> 'p.num_cpf_pessoa', '\\D', '', 'g'),
-                11,
-                '0'
-              )
-                AND b."tipo" = 'IDOSO'
-            ) AS tem_bpc_idoso,
-            EXISTS (
-              SELECT 1 FROM "BpcBeneficio" b
-              WHERE b.cpf = LPAD(
-                REGEXP_REPLACE(crl."dadosTxt"::jsonb ->> 'p.num_cpf_pessoa', '\\D', '', 'g'),
-                11,
-                '0'
-              )
-                AND b."tipo" = 'DEFICIENTE'
-            ) AS tem_bpc_deficiencia,
-            CASE
-              WHEN NULLIF(crl."dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa', '') IS NULL
-                THEN NULL
-              ELSE EXTRACT(
-                YEAR FROM age(
-                  current_date,
-                  NULLIF(crl."dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa', '')::date
-                )
-              )::int
-            END AS idade_anos
-          FROM "CaduRawLinha" crl;
-        `);
+        await prisma.$executeRawUnsafe(
+          'CREATE MATERIALIZED VIEW "vw_vig_pessoas" AS ' +
+            'SELECT ' +
+            'crl.id AS linha_id, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.cod_familiar_fam'') AS cod_familiar_fam, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.nom_pessoa'') AS nom_pessoa, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.num_nis_pessoa_atual'') AS num_nis_pessoa_atual, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_trabalho_infantil_pessoa'') AS ind_trabalho_infantil_pessoa, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.marc_sit_rua'') AS marc_sit_rua, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.cod_sexo_pessoa'') AS cod_sexo_pessoa, ' +
+            'NULLIF(crl."dadosTxt"::jsonb ->> ''p.dta_nasc_pessoa'', '''')::date AS dta_nasc_pessoa, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.cod_parentesco_rf_pessoa'') AS cod_parentesco_rf_pessoa, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.cod_raca_cor_pessoa'') AS cod_raca_cor_pessoa, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.marc_pbf'') AS marc_pbf, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_identidade_genero'') AS ind_identidade_genero, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_transgenero'') AS ind_transgenero, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_tipo_identidade_genero'') AS ind_tipo_identidade_genero, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.cod_deficiencia_memb'') AS cod_deficiencia_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_def_cegueira_memb'') AS ind_def_cegueira_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_def_baixa_visao_memb'') AS ind_def_baixa_visao_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_def_surdez_profunda_memb'') AS ind_def_surdez_profunda_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_def_surdez_leve_memb'') AS ind_def_surdez_leve_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_def_fisica_memb'') AS ind_def_fisica_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_def_mental_memb'') AS ind_def_mental_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_def_sindrome_down_memb'') AS ind_def_sindrome_down_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_def_transtorno_mental_memb'') AS ind_def_transtorno_mental_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_ajuda_nao_memb'') AS ind_ajuda_nao_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_ajuda_familia_memb'') AS ind_ajuda_familia_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_ajuda_especializado_memb'') AS ind_ajuda_especializado_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_ajuda_vizinho_memb'') AS ind_ajuda_vizinho_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_ajuda_instituicao_memb'') AS ind_ajuda_instituicao_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_ajuda_outra_memb'') AS ind_ajuda_outra_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.cod_sabe_ler_escrever_memb'') AS cod_sabe_ler_escrever_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.ind_frequenta_escola_memb'') AS ind_frequenta_escola_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.nom_escola_memb'') AS nom_escola_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.cod_escola_local_memb'') AS cod_escola_local_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.cod_curso_frequenta_memb'') AS cod_curso_frequenta_memb, ' +
+            '(crl."dadosTxt"::jsonb ->> ''p.grau_instrucao'') AS grau_instrucao, ' +
+            'LPAD( ' +
+              'REGEXP_REPLACE(crl."dadosTxt"::jsonb ->> ''p.num_cpf_pessoa'', ''\\D'', '''', ''g''), ' +
+              '11, ' +
+              '''0'' ' +
+            ') AS cpf_normalizado, ' +
+            'EXISTS ( ' +
+              'SELECT 1 FROM "BpcBeneficio" b ' +
+              'WHERE b.cpf = LPAD( ' +
+                'REGEXP_REPLACE(crl."dadosTxt"::jsonb ->> ''p.num_cpf_pessoa'', ''\\D'', '''', ''g''), ' +
+                '11, ' +
+                '''0'' ' +
+              ') ' +
+            ') AS tem_bpc, ' +
+            'EXISTS ( ' +
+              'SELECT 1 FROM "BpcBeneficio" b ' +
+              'WHERE b.cpf = LPAD( ' +
+                'REGEXP_REPLACE(crl."dadosTxt"::jsonb ->> ''p.num_cpf_pessoa'', ''\\D'', '''', ''g''), ' +
+                '11, ' +
+                '''0'' ' +
+              ') ' +
+                'AND b."tipo" = ''IDOSO'' ' +
+            ') AS tem_bpc_idoso, ' +
+            'EXISTS ( ' +
+              'SELECT 1 FROM "BpcBeneficio" b ' +
+              'WHERE b.cpf = LPAD( ' +
+                'REGEXP_REPLACE(crl."dadosTxt"::jsonb ->> ''p.num_cpf_pessoa'', ''\\D'', '''', ''g''), ' +
+                '11, ' +
+                '''0'' ' +
+              ') ' +
+                'AND b."tipo" = ''DEFICIENTE'' ' +
+            ') AS tem_bpc_deficiencia, ' +
+            'CASE ' +
+              'WHEN NULLIF(crl."dadosTxt"::jsonb ->> ''p.dta_nasc_pessoa'', '''') IS NULL ' +
+                'THEN NULL ' +
+              'ELSE EXTRACT( ' +
+                'YEAR FROM age( ' +
+                  'current_date, ' +
+                  'NULLIF(crl."dadosTxt"::jsonb ->> ''p.dta_nasc_pessoa'', '''')::date ' +
+                ') ' +
+              ')::int ' +
+            'END AS idade_anos ' +
+          'FROM "CaduRawLinha" crl;'
+        );
       } catch (error) {
         if (!String(error.message || "").includes("already exists")) {
           throw error;
