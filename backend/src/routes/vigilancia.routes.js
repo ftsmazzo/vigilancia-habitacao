@@ -28,7 +28,7 @@ router.get(
       "  WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
       ") " +
       "SELECT " +
-      '  COUNT(*)::int AS "totalPessoas",' +
+      '  COUNT(*) FILTER (WHERE cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalPessoas",' +
       '  COUNT(*) FILTER (WHERE cod_sexo_pessoa = \'1\' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalHomens",' +
       '  COUNT(*) FILTER (WHERE cod_sexo_pessoa = \'2\' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalMulheres",' +
       '  COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos < 7 AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "primeiraInfancia",' +
@@ -77,7 +77,19 @@ router.get(
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam > 810.14 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      '  )::int AS "familiasAcimaMeioSalario" ' +
+      '  )::int AS "familiasAcimaMeioSalario",' +
+      '  COUNT(*) FILTER (' +
+      "    WHERE familia_recebe_pbf " +
+      "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      '  )::int AS "familiasComPbf",' +
+      '  COUNT(*) FILTER (' +
+      "    WHERE ind_risco_scl_vlco_drts = '1' " +
+      "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      '  )::int AS "familiasRiscoViolacao",' +
+      '  COUNT(*) FILTER (' +
+      "    WHERE ind_risco_scl_inseg_alim = '1' " +
+      "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      '  )::int AS "familiasInsegurancaAlimentar" ' +
       'FROM "vw_vig_familias";';
 
     const [familiasRow] = await prisma.$queryRawUnsafe(sqlFamilias, unidadeTerritorial);
@@ -117,6 +129,13 @@ router.get(
         familiasBaixaRenda: Number(familiasRow?.familiasBaixaRenda || 0),
         familiasAcimaMeioSalario: Number(
           familiasRow?.familiasAcimaMeioSalario || 0
+        ),
+        familiasComPbf: Number(familiasRow?.familiasComPbf || 0),
+        familiasRiscoViolacao: Number(
+          familiasRow?.familiasRiscoViolacao || 0
+        ),
+        familiasInsegurancaAlimentar: Number(
+          familiasRow?.familiasInsegurancaAlimentar || 0
         )
       }
     });
@@ -294,4 +313,5 @@ router.get(
 );
 
 export default router;
+
 
