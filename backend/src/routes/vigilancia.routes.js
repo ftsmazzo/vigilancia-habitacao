@@ -230,12 +230,12 @@ router.get(
   async (_req, res) => {
     const sqlUnidades =
       "SELECT DISTINCT " +
-      '  cod_unidade_territorial_fam AS "codigo", ' +
-      '  MAX(nom_localidade_fam) AS "nome" ' +
+      '  cod_centro_assist_fam AS "codigo", ' +
+      '  MAX(nom_centro_assist_fam) AS "nome" ' +
       'FROM "vw_vig_familias" ' +
-      "WHERE cod_unidade_territorial_fam IS NOT NULL " +
-      "  AND cod_unidade_territorial_fam <> '' " +
-      "GROUP BY cod_unidade_territorial_fam " +
+      "WHERE cod_centro_assist_fam IS NOT NULL " +
+      "  AND cod_centro_assist_fam <> '' " +
+      "GROUP BY cod_centro_assist_fam " +
       'ORDER BY "nome";';
 
     const unidades = await prisma.$queryRawUnsafe(sqlUnidades);
