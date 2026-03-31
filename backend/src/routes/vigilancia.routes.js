@@ -111,7 +111,8 @@ router.post(
     const inicio = Date.now();
 
     try {
-      const sql =
+      // 1) Garante criação das views (uma instrução por chamada)
+      const sqlCreateFamilias =
         'CREATE MATERIALIZED VIEW IF NOT EXISTS "vw_vig_familias" AS ' +
         "SELECT " +
         '  cf."codFamiliarFam" AS cod_familiar_fam, ' +
@@ -134,7 +135,11 @@ router.post(
         '  WHEN cf."rendaPerCapitaFam" IS NOT NULL AND cf."rendaPerCapitaFam" <= 810.5 THEN TRUE ' +
         "  ELSE FALSE " +
         "END AS familia_pobreza_meio_salario " +
-        'FROM "CaduFamilia" cf; ' +
+        'FROM "CaduFamilia" cf;';
+
+      await prisma.$executeRawUnsafe(sqlCreateFamilias);
+
+      const sqlCreatePessoas =
         'CREATE MATERIALIZED VIEW IF NOT EXISTS "vw_vig_pessoas" AS ' +
         "SELECT " +
         "  crl.id AS linha_id, " +
@@ -177,11 +182,17 @@ router.post(
         "    ) " +
         "  )::int " +
         "END AS idade_anos " +
-        'FROM "CaduRawLinha" crl; ' +
-        'REFRESH MATERIALIZED VIEW "vw_vig_familias"; ' +
-        'REFRESH MATERIALIZED VIEW "vw_vig_pessoas";';
+        'FROM "CaduRawLinha" crl;';
 
-      await prisma.$executeRawUnsafe(sql);
+      await prisma.$executeRawUnsafe(sqlCreatePessoas);
+
+      // 2) Refresh das duas views (também uma instrução por chamada)
+      await prisma.$executeRawUnsafe(
+        'REFRESH MATERIALIZED VIEW "vw_vig_familias";'
+      );
+      await prisma.$executeRawUnsafe(
+        'REFRESH MATERIALIZED VIEW "vw_vig_pessoas";'
+      );
 
       const fim = Date.now();
 
