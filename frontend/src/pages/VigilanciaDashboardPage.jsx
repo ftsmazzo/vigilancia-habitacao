@@ -158,8 +158,56 @@ export function VigilanciaDashboardPage({ usuario }) {
               <strong>{overview?.cards?.pessoasComDeficiencia ?? 0}</strong>
             </div>
             <div className="metric-item">
-              <span>Familias em pobreza (ate 1/2 SM per capita)</span>
-              <strong>{overview?.cards?.familiasPobrezaMeioSalario ?? 0}</strong>
+              <span>Familias em pobreza (renda per capita ate R$ 218,00)</span>
+              <strong>{overview?.cards?.familiasPobreza ?? 0}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <h3>Deficiencias (CADU)</h3>
+          <div className="metrics-grid">
+            <div className="metric-item">
+              <span>Total com deficiencia</span>
+              <strong>{overview?.cards?.pessoasComDeficiencia ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Deficiencia visual (cegueira/baixa visao)</span>
+              <strong>{overview?.cards?.defVisual ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Deficiencia auditiva (surdez leve/profunda)</span>
+              <strong>{overview?.cards?.defAuditiva ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Deficiencia fisica</span>
+              <strong>{overview?.cards?.defFisica ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Deficiencia intelectual (mental/Down)</span>
+              <strong>{overview?.cards?.defIntelectual ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Transtorno/doenca mental</span>
+              <strong>{overview?.cards?.defMental ?? 0}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <h3>Faixas de renda familiar per capita</h3>
+          <div className="metrics-grid">
+            <div className="metric-item">
+              <span>Pobreza (ate R$ 218,00)</span>
+              <strong>{overview?.cards?.familiasPobreza ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Baixa renda (R$ 218,01 a R$ 810,14)</span>
+              <strong>{overview?.cards?.familiasBaixaRenda ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Acima de 1/2 salario minimo (&gt; R$ 810,14)</span>
+              <strong>{overview?.cards?.familiasAcimaMeioSalario ?? 0}</strong>
             </div>
           </div>
         </section>

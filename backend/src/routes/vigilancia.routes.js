@@ -36,6 +36,26 @@ router.get(
           WHERE cod_deficiencia_memb = '1'
         )::int AS "pessoasComDeficiencia",
         COUNT(*) FILTER (
+          WHERE cod_deficiencia_memb = '1'
+            AND (ind_def_cegueira_memb = '1' OR ind_def_baixa_visao_memb = '1')
+        )::int AS "defVisual",
+        COUNT(*) FILTER (
+          WHERE cod_deficiencia_memb = '1'
+            AND (ind_def_surdez_profunda_memb = '1' OR ind_def_surdez_leve_memb = '1')
+        )::int AS "defAuditiva",
+        COUNT(*) FILTER (
+          WHERE cod_deficiencia_memb = '1'
+            AND ind_def_fisica_memb = '1'
+        )::int AS "defFisica",
+        COUNT(*) FILTER (
+          WHERE cod_deficiencia_memb = '1'
+            AND (ind_def_mental_memb = '1' OR ind_def_sindrome_down_memb = '1')
+        )::int AS "defIntelectual",
+        COUNT(*) FILTER (
+          WHERE cod_deficiencia_memb = '1'
+            AND ind_def_transtorno_mental_memb = '1'
+        )::int AS "defMental",
+        COUNT(*) FILTER (
           WHERE ind_trabalho_infantil_pessoa = '1'
         )::int AS "pessoasTrabalhoInfantil",
         COUNT(*) FILTER (
@@ -55,7 +75,15 @@ router.get(
 
     const [familiasRow] =
       await prisma.$queryRaw`SELECT
-        COUNT(*) FILTER (WHERE familia_pobreza_meio_salario)::int AS "familiasPobrezaMeioSalario"
+        COUNT(*) FILTER (
+          WHERE vlr_renda_media_fam IS NOT NULL AND vlr_renda_media_fam <= 218
+        )::int AS "familiasPobreza",
+        COUNT(*) FILTER (
+          WHERE vlr_renda_media_fam IS NOT NULL AND vlr_renda_media_fam > 218 AND vlr_renda_media_fam <= 810.14
+        )::int AS "familiasBaixaRenda",
+        COUNT(*) FILTER (
+          WHERE vlr_renda_media_fam IS NOT NULL AND vlr_renda_media_fam > 810.14
+        )::int AS "familiasAcimaMeioSalario"
       FROM "vw_vig_familias";`;
 
     return res.json({
@@ -70,11 +98,18 @@ router.get(
         adultos: Number(pessoasRow?.adultos || 0),
         idosos: Number(pessoasRow?.idosos || 0),
         pessoasComDeficiencia: Number(pessoasRow?.pessoasComDeficiencia || 0),
+        defVisual: Number(pessoasRow?.defVisual || 0),
+        defAuditiva: Number(pessoasRow?.defAuditiva || 0),
+        defFisica: Number(pessoasRow?.defFisica || 0),
+        defIntelectual: Number(pessoasRow?.defIntelectual || 0),
+        defMental: Number(pessoasRow?.defMental || 0),
         pessoasTrabalhoInfantil: Number(pessoasRow?.pessoasTrabalhoInfantil || 0),
         pessoasSituacaoRua: Number(pessoasRow?.pessoasSituacaoRua || 0),
         criancasForaEscola: Number(pessoasRow?.criancasForaEscola || 0),
         adultosBaixaEscolaridade: Number(pessoasRow?.adultosBaixaEscolaridade || 0),
-        familiasPobrezaMeioSalario: Number(familiasRow?.familiasPobrezaMeioSalario || 0)
+        familiasPobreza: Number(familiasRow?.familiasPobreza || 0),
+        familiasBaixaRenda: Number(familiasRow?.familiasBaixaRenda || 0),
+        familiasAcimaMeioSalario: Number(familiasRow?.familiasAcimaMeioSalario || 0)
       }
     });
   }
