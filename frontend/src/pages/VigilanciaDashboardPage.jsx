@@ -5,14 +5,20 @@ export function VigilanciaDashboardPage({ usuario }) {
   const [erro, setErro] = useState("");
   const [caduStatus, setCaduStatus] = useState(null);
   const [bpcStatus, setBpcStatus] = useState(null);
+  const [overview, setOverview] = useState(null);
 
   useEffect(() => {
     async function carregar() {
       setErro("");
       try {
-        const [caduResp, bpcResp] = await Promise.all([api.get("/cadu/status"), api.get("/bpc/status")]);
+        const [caduResp, bpcResp, overviewResp] = await Promise.all([
+          api.get("/cadu/status"),
+          api.get("/bpc/status"),
+          api.get("/vigilancia/overview")
+        ]);
         setCaduStatus(caduResp.data);
         setBpcStatus(bpcResp.data);
+        setOverview(overviewResp.data);
       } catch (_error) {
         setErro("Falha ao carregar dados de vigilancia.");
       }
@@ -58,6 +64,68 @@ export function VigilanciaDashboardPage({ usuario }) {
             <div className="metric-item">
               <span>% de atualizacao cadastral</span>
               <strong>{caduStatus?.percentualAtualizacaoCadastral || "0%"}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <h3>Distribuicao por sexo</h3>
+          <div className="metrics-grid">
+            <div className="metric-item">
+              <span>Total pessoas (CADU)</span>
+              <strong>{overview?.cards?.totalPessoas ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Homens</span>
+              <strong>{overview?.cards?.totalHomens ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Mulheres</span>
+              <strong>{overview?.cards?.totalMulheres ?? 0}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <h3>Faixas etarias (CADU)</h3>
+          <div className="metrics-grid">
+            <div className="metric-item">
+              <span>Primeira infancia (0 a 5 anos)</span>
+              <strong>{overview?.cards?.primeiraInfancia ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Criancas e adolescentes (6 a 14)</span>
+              <strong>{overview?.cards?.criancasAdolescentes ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Adolescentes (15 a 17)</span>
+              <strong>{overview?.cards?.adolescentes ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Jovens (18 a 29)</span>
+              <strong>{overview?.cards?.jovens ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Adultos (30 a 59)</span>
+              <strong>{overview?.cards?.adultos ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Pessoas idosas (60+)</span>
+              <strong>{overview?.cards?.idosos ?? 0}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <h3>Situacoes especificas</h3>
+          <div className="metrics-grid">
+            <div className="metric-item">
+              <span>Pessoas com deficiencia (CADU)</span>
+              <strong>{overview?.cards?.pessoasComDeficiencia ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Familias em pobreza (ate 1/2 SM per capita)</span>
+              <strong>{overview?.cards?.familiasPobrezaMeioSalario ?? 0}</strong>
             </div>
           </div>
         </section>
