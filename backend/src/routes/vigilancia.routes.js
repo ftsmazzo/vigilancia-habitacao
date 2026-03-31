@@ -20,12 +20,14 @@ router.get(
   requireRole("MASTER", "ADMIN", "VIGILANCIA"),
   async (req, res) => {
     const unidadeTerritorial = req.query?.unidadeTerritorial || null;
+    const bairro = req.query?.bairro || null;
 
     const sqlPessoas =
       "WITH fam AS (" +
       "  SELECT cod_familiar_fam" +
       '  FROM "vw_vig_familias"' +
       "  WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      "    AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
       ") " +
       "SELECT " +
       '  COUNT(*) FILTER (WHERE cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalPessoas",' +
@@ -54,45 +56,57 @@ router.get(
 
     const [pessoasRow] = await prisma.$queryRawUnsafe(
       sqlPessoas,
-      unidadeTerritorial
+      unidadeTerritorial,
+      bairro
     );
 
     const sqlFamilias =
       "SELECT " +
       '  COUNT(*) FILTER (' +
       "    WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
       '  )::int AS "totalFamilias",' +
       '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam <= 218 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
       '  )::int AS "familiasPobreza",' +
       '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam > 218 " +
       "      AND vlr_renda_media_fam <= 810.14 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
       '  )::int AS "familiasBaixaRenda",' +
       '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam > 810.14 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
       '  )::int AS "familiasAcimaMeioSalario",' +
       '  COUNT(*) FILTER (' +
       "    WHERE familia_recebe_pbf " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
       '  )::int AS "familiasComPbf",' +
       '  COUNT(*) FILTER (' +
       "    WHERE ind_risco_scl_vlco_drts = '1' " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
       '  )::int AS "familiasRiscoViolacao",' +
       '  COUNT(*) FILTER (' +
       "    WHERE ind_risco_scl_inseg_alim = '1' " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
       '  )::int AS "familiasInsegurancaAlimentar" ' +
       'FROM "vw_vig_familias";';
 
-    const [familiasRow] = await prisma.$queryRawUnsafe(sqlFamilias, unidadeTerritorial);
+    const [familiasRow] = await prisma.$queryRawUnsafe(
+      sqlFamilias,
+      unidadeTerritorial,
+      bairro
+    );
 
     return res.json({
       cards: {
@@ -309,6 +323,32 @@ router.get(
     }));
 
     return res.json(unidades);
+  }
+);
+
+// Lista de bairros/localidades dentro de uma unidade territorial (CRAS)
+router.get(
+  "/bairros",
+  requireAuth,
+  requireRole("MASTER", "ADMIN", "VIGILANCIA"),
+  async (req, res) => {
+    const unidadeTerritorial = req.query?.unidadeTerritorial;
+
+    if (!unidadeTerritorial || unidadeTerritorial === "TODOS") {
+      return res.json([]);
+    }
+
+    const sqlBairros =
+      'SELECT DISTINCT ' +
+      '  nom_localidade_fam AS "nome" ' +
+      'FROM "vw_vig_familias" ' +
+      "WHERE cod_unidade_territorial_fam = $1 " +
+      "  AND nom_localidade_fam IS NOT NULL " +
+      "  AND nom_localidade_fam <> '' " +
+      'ORDER BY "nome";';
+
+    const bairros = await prisma.$queryRawUnsafe(sqlBairros, unidadeTerritorial);
+    return res.json(bairros);
   }
 );
 

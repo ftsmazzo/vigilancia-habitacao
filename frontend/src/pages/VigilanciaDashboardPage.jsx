@@ -11,17 +11,27 @@ export function VigilanciaDashboardPage({ usuario }) {
   const [secaoAtiva, setSecaoAtiva] = useState("visao-geral");
   const [unidades, setUnidades] = useState([]);
   const [unidadeSelecionada, setUnidadeSelecionada] = useState("TODOS");
+  const [bairros, setBairros] = useState([]);
+  const [bairroSelecionado, setBairroSelecionado] = useState("TODOS");
 
   useEffect(() => {
     async function carregar() {
       setErro("");
       try {
+        const params = new URLSearchParams();
+        if (unidadeSelecionada && unidadeSelecionada !== "TODOS") {
+          params.set("unidadeTerritorial", unidadeSelecionada);
+        }
+        if (bairroSelecionado && bairroSelecionado !== "TODOS") {
+          params.set("bairro", bairroSelecionado);
+        }
+
         const [caduResp, bpcResp, overviewResp] = await Promise.all([
           api.get("/cadu/status"),
           api.get("/bpc/status"),
           api.get(
-            unidadeSelecionada && unidadeSelecionada !== "TODOS"
-              ? `/vigilancia/overview?unidadeTerritorial=${encodeURIComponent(unidadeSelecionada)}`
+            params.toString()
+              ? `/vigilancia/overview?${params.toString()}`
               : "/vigilancia/overview"
           )
         ]);
@@ -33,7 +43,7 @@ export function VigilanciaDashboardPage({ usuario }) {
       }
     }
     carregar();
-  }, [unidadeSelecionada]);
+  }, [unidadeSelecionada, bairroSelecionado]);
 
   useEffect(() => {
     async function carregarUnidades() {
@@ -46,6 +56,29 @@ export function VigilanciaDashboardPage({ usuario }) {
     }
     carregarUnidades();
   }, []);
+
+  // Carrega bairros quando a unidade territorial muda
+  useEffect(() => {
+    async function carregarBairros() {
+      setBairros([]);
+      setBairroSelecionado("TODOS");
+
+      if (!unidadeSelecionada || unidadeSelecionada === "TODOS") {
+        return;
+      }
+
+      try {
+        const { data } = await api.get(
+          `/vigilancia/bairros?unidadeTerritorial=${encodeURIComponent(unidadeSelecionada)}`
+        );
+        setBairros(data || []);
+      } catch {
+        // se falhar, apenas nao exibe bairros
+      }
+    }
+
+    carregarBairros();
+  }, [unidadeSelecionada]);
 
   const cards = overview?.cards || {};
   const totalPessoas = cards.totalPessoas || 0;
@@ -106,6 +139,23 @@ export function VigilanciaDashboardPage({ usuario }) {
                     ))}
                   </select>
                 </div>
+                {unidadeSelecionada !== "TODOS" && bairros.length > 0 ? (
+                  <div className="metric-item">
+                    <span>Selecione o bairro/localidade</span>
+                    <select
+                      className="enhanced-select"
+                      value={bairroSelecionado}
+                      onChange={(e) => setBairroSelecionado(e.target.value || "TODOS")}
+                    >
+                      <option value="TODOS">Todos os bairros</option>
+                      {bairros.map((b) => (
+                        <option key={b.nome} value={b.nome}>
+                          {b.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
               </div>
             </section>
 
