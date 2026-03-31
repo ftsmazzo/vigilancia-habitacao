@@ -6,6 +6,8 @@ export function VigilanciaDashboardPage({ usuario }) {
   const [caduStatus, setCaduStatus] = useState(null);
   const [bpcStatus, setBpcStatus] = useState(null);
   const [overview, setOverview] = useState(null);
+  const [atualizandoBases, setAtualizandoBases] = useState(false);
+  const [mensagem, setMensagem] = useState("");
 
   useEffect(() => {
     async function carregar() {
@@ -43,7 +45,39 @@ export function VigilanciaDashboardPage({ usuario }) {
           <p className="muted">
             Perfil atual: <strong>{usuario?.role}</strong>. Este painel mostra apenas informacoes gerais de CADU/BPC.
           </p>
+          {mensagem ? <p className="success-text">{mensagem}</p> : null}
           {erro ? <p className="error-text">{erro}</p> : null}
+        </section>
+
+        <section className="card">
+          <h3>Base de Vigilancia (familias e pessoas)</h3>
+          <p className="muted">
+            Sempre que uma nova base CADU ou BPC for importada, atualize as estruturas de vigilancia para refletir os dados mais recentes.
+          </p>
+          <button
+            type="button"
+            disabled={atualizandoBases}
+            onClick={async () => {
+              setErro("");
+              setMensagem("");
+              setAtualizandoBases(true);
+              try {
+                const { data } = await api.post("/vigilancia/atualizar-bases");
+                const duracaoSeg = data?.duracaoMs ? Math.round(data.duracaoMs / 1000) : null;
+                setMensagem(
+                  duracaoSeg !== null
+                    ? `Bases de vigilancia atualizadas com sucesso em ${duracaoSeg} segundos.`
+                    : "Bases de vigilancia atualizadas com sucesso."
+                );
+              } catch (_error) {
+                setErro("Falha ao atualizar as bases de vigilancia.");
+              } finally {
+                setAtualizandoBases(false);
+              }
+            }}
+          >
+            {atualizandoBases ? "Atualizando bases..." : "Atualizar bases de vigilancia"}
+          </button>
         </section>
 
         <section className="card">

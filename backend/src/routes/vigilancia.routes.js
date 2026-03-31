@@ -73,5 +73,42 @@ router.get(
   }
 );
 
+router.post(
+  "/atualizar-bases",
+  requireAuth,
+  requireRole("MASTER", "ADMIN", "VIGILANCIA"),
+  async (req, res) => {
+    const inicio = Date.now();
+    try {
+      await prisma.$executeRawUnsafe(`REFRESH MATERIALIZED VIEW CONCURRENTLY "vw_vig_familias";`);
+      await prisma.$executeRawUnsafe(`REFRESH MATERIALIZED VIEW CONCURRENTLY "vw_vig_pessoas";`);
+
+      const fim = Date.now();
+
+      await prisma.logAuditoria.create({
+        data: {
+          usuarioId: req.user.sub,
+          acao: "REFRESH_VIEWS_VIGILANCIA",
+          detalhes: {
+            duracaoMs: fim - inicio
+          }
+        }
+      });
+
+      return res.json({
+        ok: true,
+        duracaoMs: fim - inicio
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar views de vigilancia:", error);
+      return res.status(500).json({
+        error: true,
+        message: "Falha ao atualizar as views de vigilancia. Verifique se as views existem e tente novamente.",
+        code: "VIGILANCIA_REFRESH_FAILED"
+      });
+    }
+  }
+);
+
 export default router;
 
