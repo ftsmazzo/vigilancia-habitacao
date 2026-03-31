@@ -75,18 +75,18 @@ export function VigilanciaDashboardPage({ usuario }) {
             <section className="card">
               <h2>Bem-vindo, {usuario?.nome}</h2>
               <p className="muted">
-                Perfil atual: <strong>{usuario?.role}</strong>. Este painel mostra informacoes agregadas de CADU/BPC para
-                vigilancia socioassistencial.
+                Perfil atual: <strong>{usuario?.role}</strong>. Este painel mostra informacoes agregadas de familias,
+                pessoas e beneficios para vigilancia socioassistencial.
               </p>
               {mensagem ? <p className="success-text">{mensagem}</p> : null}
               {erro ? <p className="error-text">{erro}</p> : null}
             </section>
 
             <section className="card">
-              <h3>Area do CRAS</h3>
+              <h3>Area do CRAS / Unidade territorial</h3>
               <div className="metrics-grid">
                 <div className="metric-item">
-                  <span>Selecione a unidade territorial (CRAS)</span>
+                  <span>Selecione a unidade territorial</span>
                   <select
                     className="enhanced-select"
                     value={unidadeSelecionada}
@@ -103,194 +103,187 @@ export function VigilanciaDashboardPage({ usuario }) {
               </div>
             </section>
 
+            {/* Bloco 1 – KPIs macro de familias/pessoas */}
             <section className="card">
-          <h3>Base CADU</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Total familias</span>
-              <strong>{caduStatus?.totalFamilias ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Total pessoas</span>
-              <strong>{caduStatus?.totalPessoas ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Familias com Bolsa Familia</span>
-              <strong>{caduStatus?.familiasComBolsa ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>% de atualizacao cadastral</span>
-              <strong>{caduStatus?.percentualAtualizacaoCadastral || "0%"}</strong>
-            </div>
-          </div>
-        </section>
+              <h3>Panorama geral de familias e pessoas</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Familias (origem de cadastro)</span>
+                  <strong>{caduStatus?.totalFamilias ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Pessoas (origem de cadastro)</span>
+                  <strong>{caduStatus?.totalPessoas ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Familias com beneficio de renda (PBF)</span>
+                  <strong>{caduStatus?.familiasComBolsa ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Atualizacao cadastral</span>
+                  <strong>{caduStatus?.percentualAtualizacaoCadastral || "0%"}</strong>
+                </div>
+              </div>
+            </section>
+
+            {/* Bloco 2 – Composicao demografica */}
+            <section className="card">
+              <h3>Distribuicao por sexo</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Total de pessoas (base de referencia)</span>
+                  <strong>{overview?.cards?.totalPessoas ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Homens</span>
+                  <strong>{overview?.cards?.totalHomens ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Mulheres</span>
+                  <strong>{overview?.cards?.totalMulheres ?? 0}</strong>
+                </div>
+              </div>
+            </section>
 
             <section className="card">
-          <h3>Distribuicao por sexo</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Total pessoas (CADU)</span>
-              <strong>{overview?.cards?.totalPessoas ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Homens</span>
-              <strong>{overview?.cards?.totalHomens ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Mulheres</span>
-              <strong>{overview?.cards?.totalMulheres ?? 0}</strong>
-            </div>
-          </div>
-        </section>
+              <h3>Faixas etarias (pessoas)</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Primeira infancia (0 a 6 anos)</span>
+                  <strong>{overview?.cards?.primeiraInfancia ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Criancas e adolescentes (7 a 15)</span>
+                  <strong>{overview?.cards?.criancasAdolescentes ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Adolescentes (15 a 17)</span>
+                  <strong>{overview?.cards?.adolescentes ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Jovens (18 a 29)</span>
+                  <strong>{overview?.cards?.jovens ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Adultos (30 a 59)</span>
+                  <strong>{overview?.cards?.adultos ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Pessoas idosas (60+)</span>
+                  <strong>{overview?.cards?.idosos ?? 0}</strong>
+                </div>
+              </div>
+            </section>
 
+            {/* Bloco 3 – Condicao socioeconomica das familias */}
             <section className="card">
-          <h3>Faixas etarias (CADU)</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Primeira infancia (0 a 6 anos)</span>
-              <strong>{overview?.cards?.primeiraInfancia ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Criancas e adolescentes (6 a 14)</span>
-              <strong>{overview?.cards?.criancasAdolescentes ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Adolescentes (15 a 17)</span>
-              <strong>{overview?.cards?.adolescentes ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Jovens (18 a 29)</span>
-              <strong>{overview?.cards?.jovens ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Adultos (30 a 59)</span>
-              <strong>{overview?.cards?.adultos ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Pessoas idosas (60+)</span>
-              <strong>{overview?.cards?.idosos ?? 0}</strong>
-            </div>
-          </div>
-        </section>
+              <h3>Renda familiar per capita</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Familias em pobreza (ate R$ 218,00)</span>
+                  <strong>{overview?.cards?.familiasPobreza ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Familias em baixa renda (R$ 218,01 a R$ 810,14)</span>
+                  <strong>{overview?.cards?.familiasBaixaRenda ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Familias acima de meio salario minimo (&gt; R$ 810,14)</span>
+                  <strong>{overview?.cards?.familiasAcimaMeioSalario ?? 0}</strong>
+                </div>
+              </div>
+            </section>
 
+            {/* Bloco 4 – Pessoas com deficiencia */}
             <section className="card">
-          <h3>Situacoes especificas</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Pessoas com deficiencia (CADU)</span>
-              <strong>{overview?.cards?.pessoasComDeficiencia ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Familias em pobreza (renda per capita ate R$ 218,00)</span>
-              <strong>{overview?.cards?.familiasPobreza ?? 0}</strong>
-            </div>
-          </div>
-        </section>
+              <h3>Pessoas com deficiencia</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Total com deficiencia</span>
+                  <strong>{overview?.cards?.pessoasComDeficiencia ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Deficiencia visual (cegueira/baixa visao)</span>
+                  <strong>{overview?.cards?.defVisual ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Deficiencia auditiva (surdez leve/profunda)</span>
+                  <strong>{overview?.cards?.defAuditiva ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Deficiencia fisica</span>
+                  <strong>{overview?.cards?.defFisica ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Deficiencia intelectual (mental/Down)</span>
+                  <strong>{overview?.cards?.defIntelectual ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Transtorno/doenca mental</span>
+                  <strong>{overview?.cards?.defMental ?? 0}</strong>
+                </div>
+              </div>
+            </section>
 
+            {/* Bloco 5 – BPC cruzado com o publico da base de referencia */}
             <section className="card">
-          <h3>Deficiencias (CADU)</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Total com deficiencia</span>
-              <strong>{overview?.cards?.pessoasComDeficiencia ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Deficiencia visual (cegueira/baixa visao)</span>
-              <strong>{overview?.cards?.defVisual ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Deficiencia auditiva (surdez leve/profunda)</span>
-              <strong>{overview?.cards?.defAuditiva ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Deficiencia fisica</span>
-              <strong>{overview?.cards?.defFisica ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Deficiencia intelectual (mental/Down)</span>
-              <strong>{overview?.cards?.defIntelectual ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Transtorno/doenca mental</span>
-              <strong>{overview?.cards?.defMental ?? 0}</strong>
-            </div>
-          </div>
-        </section>
+              <h3>Beneficio de Prestacao Continuada (entre as pessoas da base)</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Pessoas com BPC (qualquer tipo)</span>
+                  <strong>{overview?.cards?.pessoasComBpc ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Pessoas com BPC Idoso</span>
+                  <strong>{overview?.cards?.pessoasBpcIdoso ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Pessoas com BPC por deficiencia</span>
+                  <strong>{overview?.cards?.pessoasBpcDeficiencia ?? 0}</strong>
+                </div>
+              </div>
+            </section>
 
+            {/* Bloco 6 – Populacoes prioritarias */}
             <section className="card">
-          <h3>Faixas de renda familiar per capita</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Pobreza (ate R$ 218,00)</span>
-              <strong>{overview?.cards?.familiasPobreza ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Baixa renda (R$ 218,01 a R$ 810,14)</span>
-              <strong>{overview?.cards?.familiasBaixaRenda ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Acima de 1/2 salario minimo (&gt; R$ 810,14)</span>
-              <strong>{overview?.cards?.familiasAcimaMeioSalario ?? 0}</strong>
-            </div>
-          </div>
-        </section>
+              <h3>Populacoes prioritarias</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Pessoas em trabalho infantil</span>
+                  <strong>{overview?.cards?.pessoasTrabalhoInfantil ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Pessoas em situacao de rua</span>
+                  <strong>{overview?.cards?.pessoasSituacaoRua ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Criancas/adolescentes 7 a 15 fora da escola</span>
+                  <strong>{overview?.cards?.criancasForaEscola ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>Adultos (18+) com baixa escolaridade</span>
+                  <strong>{overview?.cards?.adultosBaixaEscolaridade ?? 0}</strong>
+                </div>
+              </div>
+            </section>
 
+            {/* Bloco 7 – Base BPC (visao do insumo, nao cruzado) */}
             <section className="card">
-          <h3>BPC entre o publico do CADU (por territorio)</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Pessoas com BPC (qualquer tipo)</span>
-              <strong>{overview?.cards?.pessoasComBpc ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Pessoas com BPC Idoso</span>
-              <strong>{overview?.cards?.pessoasBpcIdoso ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Pessoas com BPC por deficiencia</span>
-              <strong>{overview?.cards?.pessoasBpcDeficiencia ?? 0}</strong>
-            </div>
-          </div>
-        </section>
-
-            <section className="card">
-          <h3>Populacoes prioritarias</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Pessoas em trabalho infantil (marcadas no CADU)</span>
-              <strong>{overview?.cards?.pessoasTrabalhoInfantil ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Pessoas em situacao de rua (CADU)</span>
-              <strong>{overview?.cards?.pessoasSituacaoRua ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Criancas/adolescentes 7 a 15 fora da escola</span>
-              <strong>{overview?.cards?.criancasForaEscola ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>Adultos (18+) com baixa escolaridade (sem instrucao ou fundamental incompleto)</span>
-              <strong>{overview?.cards?.adultosBaixaEscolaridade ?? 0}</strong>
-            </div>
-          </div>
-        </section>
-
-            <section className="card">
-          <h3>Base BPC</h3>
-          <div className="metrics-grid">
-            <div className="metric-item">
-              <span>Total BPC</span>
-              <strong>{bpcStatus?.total ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>BPC Idoso</span>
-              <strong>{bpcStatus?.idosos ?? 0}</strong>
-            </div>
-            <div className="metric-item">
-              <span>BPC Deficiente</span>
-              <strong>{bpcStatus?.deficientes ?? 0}</strong>
-            </div>
-          </div>
+              <h3>Resumo da base de Beneficio de Prestacao Continuada</h3>
+              <div className="metrics-grid">
+                <div className="metric-item">
+                  <span>Total de registros BPC na base</span>
+                  <strong>{bpcStatus?.total ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>BPC Idoso (na base de origem)</span>
+                  <strong>{bpcStatus?.idosos ?? 0}</strong>
+                </div>
+                <div className="metric-item">
+                  <span>BPC por deficiencia (na base de origem)</span>
+                  <strong>{bpcStatus?.deficientes ?? 0}</strong>
+                </div>
+              </div>
             </section>
           </>
         ) : null}
