@@ -20,14 +20,21 @@ router.get(
   requireRole("MASTER", "ADMIN", "VIGILANCIA"),
   async (req, res) => {
     const unidadeTerritorial = req.query?.unidadeTerritorial || null;
-    const bairro = req.query?.bairro || null;
+    // bairros pode vir como string unica ou array de strings (?bairros=a&bairros=b)
+    const bairrosParam = req.query?.bairros;
+    const bairrosArray =
+      typeof bairrosParam === "string"
+        ? [bairrosParam]
+        : Array.isArray(bairrosParam)
+        ? bairrosParam
+        : [];
 
     const sqlPessoas =
       "WITH fam AS (" +
       "  SELECT cod_familiar_fam" +
       '  FROM "vw_vig_familias"' +
       "  WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "    AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
+      "    AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
       ") " +
       "SELECT " +
       '  COUNT(*) FILTER (WHERE cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalPessoas",' +
@@ -57,20 +64,20 @@ router.get(
     const [pessoasRow] = await prisma.$queryRawUnsafe(
       sqlPessoas,
       unidadeTerritorial,
-      bairro
+      bairrosArray.length ? bairrosArray : null
     );
 
     const sqlFamilias =
       "SELECT " +
       '  COUNT(*) FILTER (' +
       "    WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
+      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
       '  )::int AS "totalFamilias",' +
       '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam <= 218 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
+      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
       '  )::int AS "familiasPobreza",' +
       '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
@@ -83,29 +90,29 @@ router.get(
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam > 810.14 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
+      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
       '  )::int AS "familiasAcimaMeioSalario",' +
       '  COUNT(*) FILTER (' +
       "    WHERE familia_recebe_pbf " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
+      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
       '  )::int AS "familiasComPbf",' +
       '  COUNT(*) FILTER (' +
       "    WHERE ind_risco_scl_vlco_drts = '1' " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
+      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
       '  )::int AS "familiasRiscoViolacao",' +
       '  COUNT(*) FILTER (' +
       "    WHERE ind_risco_scl_inseg_alim = '1' " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
+      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
       '  )::int AS "familiasInsegurancaAlimentar" ' +
       'FROM "vw_vig_familias";';
 
     const [familiasRow] = await prisma.$queryRawUnsafe(
       sqlFamilias,
       unidadeTerritorial,
-      bairro
+      bairrosArray.length ? bairrosArray : null
     );
 
     return res.json({

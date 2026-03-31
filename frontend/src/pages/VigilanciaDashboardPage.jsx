@@ -12,7 +12,7 @@ export function VigilanciaDashboardPage({ usuario }) {
   const [unidades, setUnidades] = useState([]);
   const [unidadeSelecionada, setUnidadeSelecionada] = useState("TODOS");
   const [bairros, setBairros] = useState([]);
-  const [bairroSelecionado, setBairroSelecionado] = useState("TODOS");
+  const [bairrosSelecionados, setBairrosSelecionados] = useState([]);
 
   useEffect(() => {
     async function carregar() {
@@ -22,8 +22,10 @@ export function VigilanciaDashboardPage({ usuario }) {
         if (unidadeSelecionada && unidadeSelecionada !== "TODOS") {
           params.set("unidadeTerritorial", unidadeSelecionada);
         }
-        if (bairroSelecionado && bairroSelecionado !== "TODOS") {
-          params.set("bairro", bairroSelecionado);
+        if (bairrosSelecionados.length > 0) {
+          bairrosSelecionados.forEach((b) => {
+            params.append("bairros", b);
+          });
         }
 
         const [caduResp, bpcResp, overviewResp] = await Promise.all([
@@ -43,7 +45,7 @@ export function VigilanciaDashboardPage({ usuario }) {
       }
     }
     carregar();
-  }, [unidadeSelecionada, bairroSelecionado]);
+  }, [unidadeSelecionada, bairrosSelecionados]);
 
   useEffect(() => {
     async function carregarUnidades() {
@@ -61,7 +63,7 @@ export function VigilanciaDashboardPage({ usuario }) {
   useEffect(() => {
     async function carregarBairros() {
       setBairros([]);
-      setBairroSelecionado("TODOS");
+      setBairrosSelecionados([]);
 
       if (!unidadeSelecionada || unidadeSelecionada === "TODOS") {
         return;
@@ -143,11 +145,16 @@ export function VigilanciaDashboardPage({ usuario }) {
                   <div className="metric-item">
                     <span>Selecione o bairro/localidade</span>
                     <select
+                      multiple
                       className="enhanced-select"
-                      value={bairroSelecionado}
-                      onChange={(e) => setBairroSelecionado(e.target.value || "TODOS")}
+                      value={bairrosSelecionados}
+                      onChange={(e) => {
+                        const values = Array.from(e.target.selectedOptions).map(
+                          (o) => o.value
+                        );
+                        setBairrosSelecionados(values);
+                      }}
                     >
-                      <option value="TODOS">Todos os bairros</option>
                       {bairros.map((b) => (
                         <option key={b.nome} value={b.nome}>
                           {b.nome}
