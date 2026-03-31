@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
+import { VigilanciaDashboardPage } from "./pages/VigilanciaDashboardPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { api } from "./services/api.js";
 
@@ -48,6 +49,8 @@ export default function App() {
     );
   }
 
+  const isVigilancia = usuario?.role === "VIGILANCIA";
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -57,7 +60,8 @@ export default function App() {
         </div>
         <nav>
           {!usuario ? <Link to="/login">Login</Link> : null}
-          {usuario ? <Link to="/dashboard">Dashboard</Link> : null}
+          {usuario && !isVigilancia ? <Link to="/dashboard">Dashboard</Link> : null}
+          {usuario && isVigilancia ? <Link to="/vigilancia">Vigilancia</Link> : null}
           {usuario ? (
             <button type="button" className="ghost-btn" onClick={sair}>
               Sair
@@ -68,10 +72,41 @@ export default function App() {
 
       <main className="container">
         <Routes>
-          <Route path="/login" element={!usuario ? <LoginPage onLoginSuccess={carregarUsuario} /> : <Navigate to="/dashboard" replace />} />
+          <Route
+            path="/login"
+            element={
+              !usuario ? (
+                <LoginPage onLoginSuccess={carregarUsuario} />
+              ) : isVigilancia ? (
+                <Navigate to="/vigilancia" replace />
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            }
+          />
           <Route
             path="/dashboard"
-            element={usuario ? <DashboardPage usuario={usuario} onUsuarioAtualizado={setUsuario} /> : <Navigate to="/login" replace />}
+            element={
+              usuario && !isVigilancia ? (
+                <DashboardPage usuario={usuario} onUsuarioAtualizado={setUsuario} />
+              ) : usuario && isVigilancia ? (
+                <Navigate to="/vigilancia" replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/vigilancia"
+            element={
+              usuario && isVigilancia ? (
+                <VigilanciaDashboardPage usuario={usuario} />
+              ) : usuario && !isVigilancia ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
           />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

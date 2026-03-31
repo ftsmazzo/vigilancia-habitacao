@@ -11,7 +11,7 @@ const createSchema = z.object({
   nome: z.string().min(2),
   email: z.string().email(),
   senha: z.string().regex(senhaForteRegex, "Senha fraca"),
-  role: z.enum(["ADMIN", "HABITACAO"]).default("HABITACAO"),
+  role: z.enum(["ADMIN", "HABITACAO", "VIGILANCIA"]).default("HABITACAO"),
   ativo: z.boolean().optional()
 });
 
@@ -19,7 +19,7 @@ const updateSchema = z.object({
   nome: z.string().min(2).optional(),
   email: z.string().email().optional(),
   senha: z.string().regex(senhaForteRegex, "Senha fraca").optional(),
-  role: z.enum(["ADMIN", "HABITACAO"]).optional(),
+  role: z.enum(["ADMIN", "HABITACAO", "VIGILANCIA"]).optional(),
   ativo: z.boolean().optional()
 });
 
@@ -27,7 +27,7 @@ router.use(requireAuth, requireRole("MASTER", "ADMIN"));
 
 router.get("/", async (_req, res) => {
   const usuarios = await prisma.usuario.findMany({
-    where: { role: { in: ["ADMIN", "HABITACAO"] } },
+    where: { role: { in: ["ADMIN", "HABITACAO", "VIGILANCIA"] } },
     select: {
       id: true,
       nome: true,

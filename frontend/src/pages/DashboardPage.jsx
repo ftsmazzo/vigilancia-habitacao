@@ -1182,6 +1182,7 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
                   >
                     <option value="ADMIN">ADMIN</option>
                     <option value="HABITACAO">HABITACAO</option>
+                    <option value="VIGILANCIA">VIGILANCIA</option>
                   </select>
                 </label>
                 <button type="submit">Criar usuario</button>
