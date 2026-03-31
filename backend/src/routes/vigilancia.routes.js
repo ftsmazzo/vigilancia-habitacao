@@ -34,7 +34,23 @@ router.get(
         )::int AS "idosos",
         COUNT(*) FILTER (
           WHERE cod_deficiencia_memb = '1'
-        )::int AS "pessoasComDeficiencia"
+        )::int AS "pessoasComDeficiencia",
+        COUNT(*) FILTER (
+          WHERE ind_trabalho_infantil_pessoa = '1'
+        )::int AS "pessoasTrabalhoInfantil",
+        COUNT(*) FILTER (
+          WHERE marc_sit_rua = '1'
+        )::int AS "pessoasSituacaoRua",
+        COUNT(*) FILTER (
+          WHERE idade_anos IS NOT NULL
+            AND idade_anos BETWEEN 7 AND 15
+            AND ind_frequenta_escola_memb IN ('3','4')
+        )::int AS "criancasForaEscola",
+        COUNT(*) FILTER (
+          WHERE idade_anos IS NOT NULL
+            AND idade_anos >= 18
+            AND grau_instrucao IN ('1','2')
+        )::int AS "adultosBaixaEscolaridade"
       FROM "vw_vig_pessoas";`;
 
     const [familiasRow] =
@@ -54,6 +70,10 @@ router.get(
         adultos: Number(pessoasRow?.adultos || 0),
         idosos: Number(pessoasRow?.idosos || 0),
         pessoasComDeficiencia: Number(pessoasRow?.pessoasComDeficiencia || 0),
+        pessoasTrabalhoInfantil: Number(pessoasRow?.pessoasTrabalhoInfantil || 0),
+        pessoasSituacaoRua: Number(pessoasRow?.pessoasSituacaoRua || 0),
+        criancasForaEscola: Number(pessoasRow?.criancasForaEscola || 0),
+        adultosBaixaEscolaridade: Number(pessoasRow?.adultosBaixaEscolaridade || 0),
         familiasPobrezaMeioSalario: Number(familiasRow?.familiasPobrezaMeioSalario || 0)
       }
     });

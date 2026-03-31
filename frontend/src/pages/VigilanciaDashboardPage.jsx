@@ -165,6 +165,28 @@ export function VigilanciaDashboardPage({ usuario }) {
         </section>
 
         <section className="card">
+          <h3>Populacoes prioritarias</h3>
+          <div className="metrics-grid">
+            <div className="metric-item">
+              <span>Pessoas em trabalho infantil (marcadas no CADU)</span>
+              <strong>{overview?.cards?.pessoasTrabalhoInfantil ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Pessoas em situacao de rua (CADU)</span>
+              <strong>{overview?.cards?.pessoasSituacaoRua ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Criancas/adolescentes 7 a 15 fora da escola</span>
+              <strong>{overview?.cards?.criancasForaEscola ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Adultos (18+) com baixa escolaridade (sem instrucao ou fundamental incompleto)</span>
+              <strong>{overview?.cards?.adultosBaixaEscolaridade ?? 0}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
           <h3>Base BPC</h3>
           <div className="metrics-grid">
             <div className="metric-item">
