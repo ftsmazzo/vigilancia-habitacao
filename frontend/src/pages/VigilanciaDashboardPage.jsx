@@ -72,11 +72,20 @@ export function VigilanciaDashboardPage({ usuario }) {
       <div className="dashboard-grid">
         {secaoAtiva === "visao-geral" ? (
           <>
+            {(() => {
+              const cards = overview?.cards || {};
+              const totalPessoas = cards.totalPessoas || 0;
+              const totalFamilias = cards.totalFamilias || 0;
+              const pct = (valor, total) =>
+                total > 0 ? `${((valor / total) * 100).toFixed(1)}%` : "0%";
+
+              return (
+                <>
             <section className="card">
               <h2>Bem-vindo, {usuario?.nome}</h2>
               <p className="muted">
-                Perfil atual: <strong>{usuario?.role}</strong>. Este painel mostra informacoes agregadas de familias,
-                pessoas e beneficios para vigilancia socioassistencial.
+                Perfil atual: <strong>{usuario?.role}</strong>. Este painel mostra um panorama territorial de familias,
+                pessoas e beneficios, com foco em vigilancia socioassistencial.
               </p>
               {mensagem ? <p className="success-text">{mensagem}</p> : null}
               {erro ? <p className="error-text">{erro}</p> : null}
@@ -103,25 +112,31 @@ export function VigilanciaDashboardPage({ usuario }) {
               </div>
             </section>
 
-            {/* Bloco 1 – KPIs macro de familias/pessoas */}
+            {/* Bloco 1 – KPIs macro de familias/pessoas (territorializados) */}
             <section className="card">
               <h3>Panorama geral de familias e pessoas</h3>
               <div className="metrics-grid">
                 <div className="metric-item">
-                  <span>Familias (origem de cadastro)</span>
-                  <strong>{caduStatus?.totalFamilias ?? 0}</strong>
+                  <span>Familias (neste recorte territorial)</span>
+                  <strong>{totalFamilias}</strong>
                 </div>
                 <div className="metric-item">
-                  <span>Pessoas (origem de cadastro)</span>
-                  <strong>{caduStatus?.totalPessoas ?? 0}</strong>
+                  <span>Pessoas (neste recorte territorial)</span>
+                  <strong>{totalPessoas}</strong>
                 </div>
                 <div className="metric-item">
-                  <span>Familias com beneficio de renda (PBF)</span>
-                  <strong>{caduStatus?.familiasComBolsa ?? 0}</strong>
+                  <span>Pessoas com deficiencia</span>
+                  <strong>
+                    {cards.pessoasComDeficiencia ?? 0}{" "}
+                    <small className="muted">({pct(cards.pessoasComDeficiencia || 0, totalPessoas)})</small>
+                  </strong>
                 </div>
                 <div className="metric-item">
-                  <span>Atualizacao cadastral</span>
-                  <strong>{caduStatus?.percentualAtualizacaoCadastral || "0%"}</strong>
+                  <span>Pessoas com BPC</span>
+                  <strong>
+                    {cards.pessoasComBpc ?? 0}{" "}
+                    <small className="muted">({pct(cards.pessoasComBpc || 0, totalPessoas)})</small>
+                  </strong>
                 </div>
               </div>
             </section>
@@ -136,11 +151,17 @@ export function VigilanciaDashboardPage({ usuario }) {
                 </div>
                 <div className="metric-item">
                   <span>Homens</span>
-                  <strong>{overview?.cards?.totalHomens ?? 0}</strong>
+                  <strong>
+                    {cards.totalHomens ?? 0}{" "}
+                    <small className="muted">({pct(cards.totalHomens || 0, totalPessoas)})</small>
+                  </strong>
                 </div>
                 <div className="metric-item">
                   <span>Mulheres</span>
-                  <strong>{overview?.cards?.totalMulheres ?? 0}</strong>
+                  <strong>
+                    {cards.totalMulheres ?? 0}{" "}
+                    <small className="muted">({pct(cards.totalMulheres || 0, totalPessoas)})</small>
+                  </strong>
                 </div>
               </div>
             </section>
@@ -194,14 +215,10 @@ export function VigilanciaDashboardPage({ usuario }) {
               </div>
             </section>
 
-            {/* Bloco 4 – Pessoas com deficiencia */}
+            {/* Bloco 4 – Pessoas com deficiencia (tipos) */}
             <section className="card">
               <h3>Pessoas com deficiencia</h3>
               <div className="metrics-grid">
-                <div className="metric-item">
-                  <span>Total com deficiencia</span>
-                  <strong>{overview?.cards?.pessoasComDeficiencia ?? 0}</strong>
-                </div>
                 <div className="metric-item">
                   <span>Deficiencia visual (cegueira/baixa visao)</span>
                   <strong>{overview?.cards?.defVisual ?? 0}</strong>
@@ -267,25 +284,9 @@ export function VigilanciaDashboardPage({ usuario }) {
               </div>
             </section>
 
-            {/* Bloco 7 – Base BPC (visao do insumo, nao cruzado) */}
-            <section className="card">
-              <h3>Resumo da base de Beneficio de Prestacao Continuada</h3>
-              <div className="metrics-grid">
-                <div className="metric-item">
-                  <span>Total de registros BPC na base</span>
-                  <strong>{bpcStatus?.total ?? 0}</strong>
-                </div>
-                <div className="metric-item">
-                  <span>BPC Idoso (na base de origem)</span>
-                  <strong>{bpcStatus?.idosos ?? 0}</strong>
-                </div>
-                <div className="metric-item">
-                  <span>BPC por deficiencia (na base de origem)</span>
-                  <strong>{bpcStatus?.deficientes ?? 0}</strong>
-                </div>
-              </div>
-            </section>
           </>
+              );
+            })()}
         ) : null}
 
         {secaoAtiva === "administracao" ? (
