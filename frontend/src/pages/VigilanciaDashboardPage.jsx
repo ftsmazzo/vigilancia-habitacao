@@ -199,15 +199,57 @@ export function VigilanciaDashboardPage({ usuario }) {
               <div className="metrics-grid">
                 <div className="metric-item">
                   <span>Familias em pobreza (ate R$ 218,00)</span>
-                  <strong>{overview?.cards?.familiasPobreza ?? 0}</strong>
+                  <strong>
+                    {cards.familiasPobreza ?? 0}{" "}
+                    <small className="muted">
+                      ({pct(cards.familiasPobreza || 0, totalFamilias)})
+                    </small>
+                  </strong>
                 </div>
                 <div className="metric-item">
                   <span>Familias em baixa renda (R$ 218,01 a R$ 810,14)</span>
-                  <strong>{overview?.cards?.familiasBaixaRenda ?? 0}</strong>
+                  <strong>
+                    {cards.familiasBaixaRenda ?? 0}{" "}
+                    <small className="muted">
+                      ({pct(cards.familiasBaixaRenda || 0, totalFamilias)})
+                    </small>
+                  </strong>
                 </div>
                 <div className="metric-item">
                   <span>Familias acima de meio salario minimo (&gt; R$ 810,14)</span>
-                  <strong>{overview?.cards?.familiasAcimaMeioSalario ?? 0}</strong>
+                  <strong>
+                    {cards.familiasAcimaMeioSalario ?? 0}{" "}
+                    <small className="muted">
+                      ({pct(cards.familiasAcimaMeioSalario || 0, totalFamilias)})
+                    </small>
+                  </strong>
+                </div>
+                <div className="metric-item">
+                  <span>Familias com beneficio de renda (PBF)</span>
+                  <strong>
+                    {cards.familiasComPbf ?? 0}{" "}
+                    <small className="muted">
+                      ({pct(cards.familiasComPbf || 0, totalFamilias)})
+                    </small>
+                  </strong>
+                </div>
+                <div className="metric-item">
+                  <span>Familias em situacao de risco de violacao de direitos</span>
+                  <strong>
+                    {cards.familiasRiscoViolacao ?? 0}{" "}
+                    <small className="muted">
+                      ({pct(cards.familiasRiscoViolacao || 0, totalFamilias)})
+                    </small>
+                  </strong>
+                </div>
+                <div className="metric-item">
+                  <span>Familias em risco para inseguranca alimentar</span>
+                  <strong>
+                    {cards.familiasInsegurancaAlimentar ?? 0}{" "}
+                    <small className="muted">
+                      ({pct(cards.familiasInsegurancaAlimentar || 0, totalFamilias)})
+                    </small>
+                  </strong>
                 </div>
               </div>
             </section>
