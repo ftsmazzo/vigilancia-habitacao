@@ -91,9 +91,9 @@ BEGIN
     CREATE MATERIALIZED VIEW "vw_vig_familias" AS
     SELECT
       cf."codFamiliarFam" AS cod_familiar_fam,
-      (cf."rawDadosTxt"::jsonb ->> 'd.dat_cadastramento_fam')::date AS dat_cadastramento_fam,
+      NULLIF(cf."rawDadosTxt"::jsonb ->> 'd.dat_cadastramento_fam', '')::date AS dat_cadastramento_fam,
       cf."dataAtualFam" AS dat_atual_fam,
-      (cf."rawDadosTxt"::jsonb ->> 'd.dta_entrevista_fam')::date AS dta_entrevista_fam,
+      NULLIF(cf."rawDadosTxt"::jsonb ->> 'd.dta_entrevista_fam', '')::date AS dta_entrevista_fam,
       (cf."rawDadosTxt"::jsonb ->> 'd.cod_forma_coleta_fam') AS cod_forma_coleta_fam,
       CASE (cf."rawDadosTxt"::jsonb ->> 'd.cod_forma_coleta_fam')
         WHEN '0' THEN 'Informacao migrada como inexistente'
@@ -161,7 +161,7 @@ BEGIN
       (crl."dadosTxt"::jsonb ->> 'p.ind_trabalho_infantil_pessoa') AS ind_trabalho_infantil_pessoa,
       (crl."dadosTxt"::jsonb ->> 'p.marc_sit_rua') AS marc_sit_rua,
       (crl."dadosTxt"::jsonb ->> 'p.cod_sexo_pessoa') AS cod_sexo_pessoa,
-      (crl."dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date AS dta_nasc_pessoa,
+      NULLIF(crl."dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa', '')::date AS dta_nasc_pessoa,
       (crl."dadosTxt"::jsonb ->> 'p.cod_parentesco_rf_pessoa') AS cod_parentesco_rf_pessoa,
       (crl."dadosTxt"::jsonb ->> 'p.cod_raca_cor_pessoa') AS cod_raca_cor_pessoa,
       (crl."dadosTxt"::jsonb ->> 'p.marc_pbf') AS marc_pbf,
@@ -220,7 +220,16 @@ BEGIN
         )
           AND b."tipo" = 'DEFICIENTE'
       ) AS tem_bpc_deficiencia,
-      EXTRACT(YEAR FROM age(current_date, (crl."dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date))::int AS idade_anos
+      CASE
+        WHEN NULLIF(crl."dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa', '') IS NULL
+          THEN NULL
+        ELSE EXTRACT(
+          YEAR FROM age(
+            current_date,
+            NULLIF(crl."dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa', '')::date
+          )
+        )::int
+      END AS idade_anos
     FROM "CaduRawLinha" crl;
   END IF;
 END $$;
