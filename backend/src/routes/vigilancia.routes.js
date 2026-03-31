@@ -12,48 +12,35 @@ router.get(
     const [pessoasRow] =
       await prisma.$queryRaw`SELECT
         COUNT(*)::int AS "totalPessoas",
-        COUNT(*) FILTER (WHERE ("dadosTxt"::jsonb ->> 'p.cod_sexo_pessoa') = '1')::int AS "totalHomens",
-        COUNT(*) FILTER (WHERE ("dadosTxt"::jsonb ->> 'p.cod_sexo_pessoa') = '2')::int AS "totalMulheres",
+        COUNT(*) FILTER (WHERE cod_sexo_pessoa = '1')::int AS "totalHomens",
+        COUNT(*) FILTER (WHERE cod_sexo_pessoa = '2')::int AS "totalMulheres",
         COUNT(*) FILTER (
-          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) < 7
+          WHERE idade_anos IS NOT NULL AND idade_anos < 7
         )::int AS "primeiraInfancia",
         COUNT(*) FILTER (
-          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 7
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 15
+          WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15
         )::int AS "criancasAdolescentes",
         COUNT(*) FILTER (
-          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 15
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 17
+          WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 15 AND 17
         )::int AS "adolescentes",
         COUNT(*) FILTER (
-          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 18
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 29
+          WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 18 AND 29
         )::int AS "jovens",
         COUNT(*) FILTER (
-          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 30
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) <= 59
+          WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 30 AND 59
         )::int AS "adultos",
         COUNT(*) FILTER (
-          WHERE ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa') IS NOT NULL
-            AND date_part('year', age(current_date, ("dadosTxt"::jsonb ->> 'p.dta_nasc_pessoa')::date)) >= 60
+          WHERE idade_anos IS NOT NULL AND idade_anos >= 60
         )::int AS "idosos",
         COUNT(*) FILTER (
-          WHERE ("dadosTxt"::jsonb ->> 'p.cod_deficiencia_memb') = '1'
+          WHERE cod_deficiencia_memb = '1'
         )::int AS "pessoasComDeficiencia"
-      FROM "CaduRawLinha";`;
+      FROM "vw_vig_pessoas";`;
 
     const [familiasRow] =
       await prisma.$queryRaw`SELECT
-        COUNT(*) FILTER (
-          WHERE "rendaPerCapitaFam" IS NOT NULL
-            AND "rendaPerCapitaFam" <= 810.5
-        )::int AS "familiasPobrezaMeioSalario"
-      FROM "CaduFamilia";`;
+        COUNT(*) FILTER (WHERE familia_pobreza_meio_salario)::int AS "familiasPobrezaMeioSalario"
+      FROM "vw_vig_familias";`;
 
     return res.json({
       cards: {
