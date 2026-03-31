@@ -132,7 +132,6 @@ router.post(
         "  (cf.\"rawDadosTxt\"::jsonb ->> 'd.nom_localidade_fam') AS nom_localidade_fam, " +
         "  (cf.\"rawDadosTxt\"::jsonb ->> 'd.num_cep_logradouro_fam') AS num_cep_logradouro_fam, " +
         "  (cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_unidade_territorial_fam') AS cod_unidade_territorial_fam, " +
-        "  (cf.\"rawDadosTxt\"::jsonb ->> 'd.nom_unidade_territorial_fam') AS nom_unidade_territorial_fam, " +
         '  cf."rendaPerCapitaFam" AS vlr_renda_media_fam, ' +
         "(cf.\"rawDadosTxt\"::jsonb ->> 'd.vlr_renda_total_fam')::numeric AS vlr_renda_total_fam, " +
         "(cf.\"rawDadosTxt\"::jsonb ->> 'd.marc_pbf') AS marc_pbf, " +
@@ -240,13 +239,11 @@ router.get(
   async (_req, res) => {
     const sqlUnidades =
       'SELECT DISTINCT ' +
-      '  cod_unidade_territorial_fam AS "codigo", ' +
-      '  MAX(nom_unidade_territorial_fam) AS "nome" ' +
+      '  cod_unidade_territorial_fam AS "codigo" ' +
       'FROM "vw_vig_familias" ' +
       "WHERE cod_unidade_territorial_fam IS NOT NULL " +
       "  AND cod_unidade_territorial_fam <> '' " +
-      "GROUP BY cod_unidade_territorial_fam " +
-      'ORDER BY "nome";';
+      "ORDER BY cod_unidade_territorial_fam;";
 
     const unidadesBrutas = await prisma.$queryRawUnsafe(sqlUnidades);
     const unidades = unidadesBrutas.map((u) => ({
