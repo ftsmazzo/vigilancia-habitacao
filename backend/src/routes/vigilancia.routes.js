@@ -29,13 +29,7 @@ router.get(
         ? bairrosParam
         : [];
 
-    const sqlPessoas =
-      "WITH fam AS (" +
-      "  SELECT cod_familiar_fam" +
-      '  FROM "vw_vig_familias"' +
-      "  WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "    AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
-      ") " +
+    const sqlPessoasBase =
       "SELECT " +
       '  COUNT(*) FILTER (WHERE cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalPessoas",' +
       '  COUNT(*) FILTER (WHERE cod_sexo_pessoa = \'1\' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "totalHomens",' +
@@ -61,59 +55,122 @@ router.get(
       '  COUNT(*) FILTER (WHERE tem_bpc_deficiencia AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasBpcDeficiencia" ' +
       'FROM "vw_vig_pessoas";';
 
-    const [pessoasRow] = await prisma.$queryRawUnsafe(
-      sqlPessoas,
-      unidadeTerritorial,
-      bairrosArray.length ? bairrosArray : null
-    );
+    let pessoasRow;
+    if (!bairrosArray.length) {
+      const [row] = await prisma.$queryRawUnsafe(
+        "WITH fam AS (" +
+          "  SELECT cod_familiar_fam" +
+          '  FROM "vw_vig_familias"' +
+          "  WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          ") " +
+          sqlPessoasBase,
+        unidadeTerritorial
+      );
+      pessoasRow = row;
+    } else {
+      const [row] = await prisma.$queryRawUnsafe(
+        "WITH fam AS (" +
+          "  SELECT cod_familiar_fam" +
+          '  FROM "vw_vig_familias"' +
+          "  WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          "    AND nom_localidade_fam = ANY($2::text[])" +
+          ") " +
+          sqlPessoasBase,
+        unidadeTerritorial,
+        bairrosArray
+      );
+      pessoasRow = row;
+    }
 
-    const sqlFamilias =
+    const sqlFamiliasBase =
       "SELECT " +
       '  COUNT(*) FILTER (' +
       "    WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
-      '  )::int AS "totalFamilias",' +
+      "  )::int AS \"totalFamilias\"," +
       '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam <= 218 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
-      '  )::int AS "familiasPobreza",' +
+      "  )::int AS \"familiasPobreza\"," +
       '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam > 218 " +
       "      AND vlr_renda_media_fam <= 810.14 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text IS NULL OR $2 = '' OR nom_localidade_fam = $2)" +
-      '  )::int AS "familiasBaixaRenda",' +
+      "  )::int AS \"familiasBaixaRenda\"," +
       '  COUNT(*) FILTER (' +
       "    WHERE vlr_renda_media_fam IS NOT NULL " +
       "      AND vlr_renda_media_fam > 810.14 " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
-      '  )::int AS "familiasAcimaMeioSalario",' +
+      "  )::int AS \"familiasAcimaMeioSalario\"," +
       '  COUNT(*) FILTER (' +
       "    WHERE familia_recebe_pbf " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
-      '  )::int AS "familiasComPbf",' +
+      "  )::int AS \"familiasComPbf\"," +
       '  COUNT(*) FILTER (' +
       "    WHERE ind_risco_scl_vlco_drts = '1' " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
-      '  )::int AS "familiasRiscoViolacao",' +
+      "  )::int AS \"familiasRiscoViolacao\"," +
       '  COUNT(*) FILTER (' +
       "    WHERE ind_risco_scl_inseg_alim = '1' " +
       "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
-      "      AND ($2::text[] IS NULL OR array_length($2, 1) IS NULL OR nom_localidade_fam = ANY($2))" +
-      '  )::int AS "familiasInsegurancaAlimentar" ' +
+      "  )::int AS \"familiasInsegurancaAlimentar\" " +
       'FROM "vw_vig_familias";';
 
-    const [familiasRow] = await prisma.$queryRawUnsafe(
-      sqlFamilias,
-      unidadeTerritorial,
-      bairrosArray.length ? bairrosArray : null
-    );
+    let familiasRow;
+    if (!bairrosArray.length) {
+      const [row] = await prisma.$queryRawUnsafe(
+        sqlFamiliasBase,
+        unidadeTerritorial
+      );
+      familiasRow = row;
+    } else {
+      const [row] = await prisma.$queryRawUnsafe(
+        "SELECT " +
+          '  COUNT(*) FILTER (' +
+          "    WHERE ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          "      AND nom_localidade_fam = ANY($2::text[])" +
+          "  )::int AS \"totalFamilias\"," +
+          '  COUNT(*) FILTER (' +
+          "    WHERE vlr_renda_media_fam IS NOT NULL " +
+          "      AND vlr_renda_media_fam <= 218 " +
+          "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          "      AND nom_localidade_fam = ANY($2::text[])" +
+          "  )::int AS \"familiasPobreza\"," +
+          '  COUNT(*) FILTER (' +
+          "    WHERE vlr_renda_media_fam IS NOT NULL " +
+          "      AND vlr_renda_media_fam > 218 " +
+          "      AND vlr_renda_media_fam <= 810.14 " +
+          "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          "      AND nom_localidade_fam = ANY($2::text[])" +
+          "  )::int AS \"familiasBaixaRenda\"," +
+          '  COUNT(*) FILTER (' +
+          "    WHERE vlr_renda_media_fam IS NOT NULL " +
+          "      AND vlr_renda_media_fam > 810.14 " +
+          "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          "      AND nom_localidade_fam = ANY($2::text[])" +
+          "  )::int AS \"familiasAcimaMeioSalario\"," +
+          '  COUNT(*) FILTER (' +
+          "    WHERE familia_recebe_pbf " +
+          "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          "      AND nom_localidade_fam = ANY($2::text[])" +
+          "  )::int AS \"familiasComPbf\"," +
+          '  COUNT(*) FILTER (' +
+          "    WHERE ind_risco_scl_vlco_drts = '1' " +
+          "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          "      AND nom_localidade_fam = ANY($2::text[])" +
+          "  )::int AS \"familiasRiscoViolacao\"," +
+          '  COUNT(*) FILTER (' +
+          "    WHERE ind_risco_scl_inseg_alim = '1' " +
+          "      AND ($1::text IS NULL OR $1 = 'TODOS' OR cod_unidade_territorial_fam = $1)" +
+          "      AND nom_localidade_fam = ANY($2::text[])" +
+          "  )::int AS \"familiasInsegurancaAlimentar\" " +
+          'FROM "vw_vig_familias";',
+        unidadeTerritorial,
+        bairrosArray
+      );
+      familiasRow = row;
+    }
 
     return res.json({
       cards: {
