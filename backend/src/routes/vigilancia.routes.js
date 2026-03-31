@@ -4,6 +4,15 @@ import { requireAuth, requireRole } from "../middlewares/auth.js";
 
 const router = Router();
 
+function formatNomeUnidadeTerritorial(codigo) {
+  if (!codigo) return "Sem unidade territorial";
+  const n = parseInt(codigo, 10);
+  if (Number.isNaN(n)) return codigo;
+  if (n === 9) return "CRAS Bonfim Paulista";
+  const numero = String(n).padStart(2, "0");
+  return `CRAS ${numero}`;
+}
+
 // Visão geral dos cards de Vigilância (usa views já existentes)
 router.get(
   "/overview",
@@ -239,7 +248,11 @@ router.get(
       "GROUP BY cod_unidade_territorial_fam " +
       'ORDER BY "nome";';
 
-    const unidades = await prisma.$queryRawUnsafe(sqlUnidades);
+    const unidadesBrutas = await prisma.$queryRawUnsafe(sqlUnidades);
+    const unidades = unidadesBrutas.map((u) => ({
+      codigo: u.codigo,
+      nome: formatNomeUnidadeTerritorial(u.codigo)
+    }));
 
     return res.json(unidades);
   }
