@@ -46,7 +46,10 @@ router.get(
       '  COUNT(*) FILTER (WHERE ind_trabalho_infantil_pessoa = \'1\' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasTrabalhoInfantil",' +
       '  COUNT(*) FILTER (WHERE marc_sit_rua = \'1\' AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasSituacaoRua",' +
       '  COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos BETWEEN 7 AND 15 AND ind_frequenta_escola_memb IN (\'3\',\'4\') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "criancasForaEscola",' +
-      '  COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 18 AND grau_instrucao IN (\'1\',\'2\') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adultosBaixaEscolaridade" ' +
+      '  COUNT(*) FILTER (WHERE idade_anos IS NOT NULL AND idade_anos >= 18 AND grau_instrucao IN (\'1\',\'2\') AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "adultosBaixaEscolaridade",' +
+      '  COUNT(*) FILTER (WHERE tem_bpc AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasComBpc",' +
+      '  COUNT(*) FILTER (WHERE tem_bpc_idoso AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasBpcIdoso",' +
+      '  COUNT(*) FILTER (WHERE tem_bpc_deficiencia AND cod_familiar_fam IN (SELECT cod_familiar_fam FROM fam))::int AS "pessoasBpcDeficiencia" ' +
       'FROM "vw_vig_pessoas";';
 
     const [pessoasRow] = await prisma.$queryRawUnsafe(
@@ -100,6 +103,11 @@ router.get(
         criancasForaEscola: Number(pessoasRow?.criancasForaEscola || 0),
         adultosBaixaEscolaridade: Number(
           pessoasRow?.adultosBaixaEscolaridade || 0
+        ),
+        pessoasComBpc: Number(pessoasRow?.pessoasComBpc || 0),
+        pessoasBpcIdoso: Number(pessoasRow?.pessoasBpcIdoso || 0),
+        pessoasBpcDeficiencia: Number(
+          pessoasRow?.pessoasBpcDeficiencia || 0
         ),
         familiasPobreza: Number(familiasRow?.familiasPobreza || 0),
         familiasBaixaRenda: Number(familiasRow?.familiasBaixaRenda || 0),
@@ -181,6 +189,32 @@ router.post(
         "  11, " +
         "  '0' " +
         ") AS cpf_normalizado, " +
+        "EXISTS ( " +
+        "  SELECT 1 FROM \"BpcBeneficio\" b " +
+        "  WHERE b.cpf = LPAD( " +
+        "    REGEXP_REPLACE(crl.\"dadosTxt\"::jsonb ->> 'p.num_cpf_pessoa', '\\\\D', '', 'g'), " +
+        "    11, " +
+        "    '0' " +
+        "  ) " +
+        ") AS tem_bpc, " +
+        "EXISTS ( " +
+        "  SELECT 1 FROM \"BpcBeneficio\" b " +
+        "  WHERE b.cpf = LPAD( " +
+        "    REGEXP_REPLACE(crl.\"dadosTxt\"::jsonb ->> 'p.num_cpf_pessoa', '\\\\D', '', 'g'), " +
+        "    11, " +
+        "    '0' " +
+        "  ) " +
+        "  AND b.\"tipo\" = 'IDOSO' " +
+        ") AS tem_bpc_idoso, " +
+        "EXISTS ( " +
+        "  SELECT 1 FROM \"BpcBeneficio\" b " +
+        "  WHERE b.cpf = LPAD( " +
+        "    REGEXP_REPLACE(crl.\"dadosTxt\"::jsonb ->> 'p.num_cpf_pessoa', '\\\\D', '', 'g'), " +
+        "    11, " +
+        "    '0' " +
+        "  ) " +
+        "  AND b.\"tipo\" = 'DEFICIENTE' " +
+        ") AS tem_bpc_deficiencia, " +
         "CASE " +
         "  WHEN NULLIF(crl.\"dadosTxt\"::jsonb ->> 'p.dta_nasc_pessoa', '') IS NULL " +
         "    THEN NULL " +

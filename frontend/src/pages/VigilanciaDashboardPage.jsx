@@ -236,6 +236,24 @@ export function VigilanciaDashboardPage({ usuario }) {
         </section>
 
             <section className="card">
+          <h3>BPC entre o publico do CADU (por territorio)</h3>
+          <div className="metrics-grid">
+            <div className="metric-item">
+              <span>Pessoas com BPC (qualquer tipo)</span>
+              <strong>{overview?.cards?.pessoasComBpc ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Pessoas com BPC Idoso</span>
+              <strong>{overview?.cards?.pessoasBpcIdoso ?? 0}</strong>
+            </div>
+            <div className="metric-item">
+              <span>Pessoas com BPC por deficiencia</span>
+              <strong>{overview?.cards?.pessoasBpcDeficiencia ?? 0}</strong>
+            </div>
+          </div>
+        </section>
+
+            <section className="card">
           <h3>Populacoes prioritarias</h3>
           <div className="metrics-grid">
             <div className="metric-item">
