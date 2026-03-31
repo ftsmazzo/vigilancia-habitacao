@@ -275,7 +275,7 @@ router.get("/status", requireAuth, requireRole("MASTER", "ADMIN", "VIGILANCIA"),
   limiteAtualizacao.setMonth(limiteAtualizacao.getMonth() - mesesAtualizacao);
 
   const [totalPessoas, totalFamilias, ultimoImport, dataBaseMax, familiasComBolsa, familiasAtualizadas, familiasDesatualizadas] = await Promise.all([
-    prisma.caduPessoa.count(),
+    prisma.caduRawLinha.count(),
     prisma.caduFamilia.count(),
     prisma.caduRawImport.findFirst({
       orderBy: { criadoEm: "desc" },

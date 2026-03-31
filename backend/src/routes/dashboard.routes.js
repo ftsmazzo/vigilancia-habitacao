@@ -31,7 +31,7 @@ router.get("/overview", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO")
 
   const [totalListas, totalPessoasCadu, totalFamiliasCadu, totalBpc, totalBpcIdoso, totalBpcDeficiente, groupedStatus, groupedTotal] = await Promise.all([
     prisma.preSelecionado.count({ where: preSelecionadosWhere }),
-    prisma.caduPessoa.count(),
+    prisma.caduRawLinha.count(),
     prisma.caduFamilia.count(),
     prisma.bpcBeneficio.count(),
     prisma.bpcBeneficio.count({ where: { tipo: "IDOSO" } }),
