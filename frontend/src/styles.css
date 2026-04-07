@@ -831,3 +831,76 @@ body {
   width: auto;
   cursor: pointer;
 }
+
+.assistente-base-docs {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.assistente-base-docs-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.assistente-base-docs-list {
+  margin: 0 0 12px;
+  padding-left: 1.25rem;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.assistente-base-docs-list li {
+  margin-bottom: 6px;
+}
+
+.assistente-rma-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  border: 1px solid #14532d;
+  background: rgba(20, 83, 45, 0.2);
+  color: #ecfdf5;
+}
+
+.assistente-rma-banner-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #166534;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.assistente-rma-clear {
+  margin-top: 10px;
+  padding: 6px 12px;
+  font-size: 0.88rem;
+  border-radius: 6px;
+  border: 1px solid #4ade80;
+  background: transparent;
+  color: #86efac;
+  cursor: pointer;
+}
+
+.assistente-rma-clear:hover:not(:disabled) {
+  background: rgba(74, 222, 128, 0.12);
+}
+
+.assistente-rma-clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
