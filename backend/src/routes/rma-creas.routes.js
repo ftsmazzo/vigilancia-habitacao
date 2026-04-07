@@ -297,7 +297,7 @@ router.get(
           ? 1
           : 0
         : rowsDb.length;
-      porCreas = sortPorCras(
+      porCreas = sortPorCreas(
         rowsDb.map((r) => ({
           idCreas: r.idCreas,
           nomeUnidade: r.nomeUnidade,
