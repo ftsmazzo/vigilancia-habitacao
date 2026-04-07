@@ -263,3 +263,33 @@ model RmaCreasRegistroMensal {
   @@index([mesReferencia])
   @@index([idCreas])
 }
+
+/// Definicoes de indicadores RMA Centro POP
+model RmaPopIndicadorDef {
+  codigo String @id
+  rotulo String
+  grupo  String?
+  ordem  Int    @default(0)
+}
+
+/// Registro mensal RMA Centro POP (mes referencia + id unidade; metricas JSON)
+model RmaPopRegistroMensal {
+  id               String   @id @default(uuid())
+  mesReferencia    DateTime
+  idUnidade        String
+  nomeUnidade      String?
+  endereco         String?
+  municipio        String?
+  uf               String?
+  coordenadorPop   String?
+  cpfCoordenador   String?
+  codigoIbge       String?
+  metricas         Json
+
+  importadoEm  DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([mesReferencia, idUnidade])
+  @@index([mesReferencia])
+  @@index([idUnidade])
+}

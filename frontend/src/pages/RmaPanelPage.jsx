@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RmaCrasPanel } from "./RmaCrasPanel.jsx";
 import { RmaCreasPanel } from "./RmaCreasPanel.jsx";
+import { RmaPopPanel } from "./RmaPopPanel.jsx";
 
 export function RmaPanelPage({ usuario }) {
   const [aba, setAba] = useState("cras");
@@ -26,8 +27,23 @@ export function RmaPanelPage({ usuario }) {
         >
           RMA CREAS
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === "pop"}
+          className={aba === "pop" ? "rma-tab active" : "rma-tab"}
+          onClick={() => setAba("pop")}
+        >
+          RMA Centro POP
+        </button>
       </div>
-      {aba === "cras" ? <RmaCrasPanel usuario={usuario} /> : <RmaCreasPanel usuario={usuario} />}
+      {aba === "cras" ? (
+        <RmaCrasPanel usuario={usuario} />
+      ) : aba === "creas" ? (
+        <RmaCreasPanel usuario={usuario} />
+      ) : (
+        <RmaPopPanel usuario={usuario} />
+      )}
     </div>
   );
 }

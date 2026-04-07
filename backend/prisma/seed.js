@@ -20,6 +20,19 @@ const META_CREAS = new Set([
   "codigoibge"
 ]);
 
+const META_POP = new Set([
+  "mes_ano",
+  "mes_referencia",
+  "nome_unidade",
+  "id_unidade",
+  "endereco",
+  "municipio",
+  "uf",
+  "coordenador",
+  "cpf",
+  "ibge"
+]);
+
 async function seedRmaIndicadores() {
   const raw = readFileSync(join(__dirname, "rma-indicadores.json"), "utf8");
   const indicadores = JSON.parse(raw);
@@ -72,6 +85,37 @@ async function seedRmaCreasIndicadores() {
   }
 }
 
+async function seedRmaPopIndicadores() {
+  const buf = readFileSync(join(__dirname, "rma-pop-dicionario.csv"));
+  const text = decodeCsvBuffer(buf);
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  let ordem = 0;
+  for (const line of lines) {
+    const idx = line.indexOf(";");
+    if (idx <= 0) continue;
+    const codigo = line
+      .slice(0, idx)
+      .trim()
+      .replace(/^\ufeff/, "")
+      .toLowerCase();
+    if (!codigo || META_POP.has(codigo)) continue;
+    let rotulo = line.slice(idx + 1).trim();
+    if (
+      (rotulo.startsWith("'") && rotulo.endsWith("'")) ||
+      (rotulo.startsWith('"') && rotulo.endsWith('"'))
+    ) {
+      rotulo = rotulo.slice(1, -1);
+    }
+    const grupo = codigo[0] ? codigo[0].toUpperCase() : null;
+    ordem += 1;
+    await prisma.rmaPopIndicadorDef.upsert({
+      where: { codigo },
+      update: { rotulo, grupo, ordem },
+      create: { codigo, rotulo, grupo, ordem }
+    });
+  }
+}
+
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL || "admin@vigilancia.local";
   const adminSenha = process.env.ADMIN_PASSWORD || "admin123";
@@ -95,6 +139,7 @@ async function main() {
 
   await seedRmaIndicadores();
   await seedRmaCreasIndicadores();
+  await seedRmaPopIndicadores();
 }
 
 main()
