@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../services/api.js";
+import { setAssistenteContextoRma } from "../utils/assistenteContextStorage.js";
 
 const KPI_PRINCIPAL = [
   { key: "a1", label: "Casos em acompanhamento PAEFI (A.1)" },
@@ -16,6 +18,7 @@ function formatNum(n) {
 }
 
 export function RmaCreasPanel({ usuario }) {
+  const navigate = useNavigate();
   const podeEnviar = usuario?.role === "MASTER" || usuario?.role === "ADMIN";
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
@@ -304,6 +307,26 @@ export function RmaCreasPanel({ usuario }) {
                 }}
               >
                 Exportar relatorio PDF
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  setAssistenteContextoRma({
+                    tipo: "rma-creas",
+                    titulo: "RMA CREAS",
+                    filtros: {
+                      ano,
+                      mes,
+                      idCreas: idCreasFiltro || null,
+                      unidade: nomeUnidadeFiltro || null
+                    },
+                    overview
+                  });
+                  navigate("/assistente");
+                }}
+              >
+                Enviar recorte ao assistente
               </button>
               <p className="muted small-margin-b rma-pdf-hint">
                 Usa o ano, mes e unidade selecionados acima. O PDF inclui apenas totais numericos
