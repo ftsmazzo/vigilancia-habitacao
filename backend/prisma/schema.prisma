@@ -177,3 +177,59 @@ model LogAuditoria {
   detalhes  Json?
   criadoEm  DateTime @default(now())
 }
+
+/// Definicoes de indicadores RMA (rotulos para painel e tooltips)
+model RmaIndicadorDef {
+  codigo String @id
+  rotulo String
+  grupo  String?
+  ordem  Int    @default(0)
+}
+
+/// Registro mensal RMA por CRAS (chave natural: mes referencia + id_cras)
+model RmaRegistroMensal {
+  id            String   @id @default(uuid())
+  mesReferencia DateTime
+  idCras        String
+  nomeUnidade   String?
+  endereco      String?
+  municipio     String?
+  uf            String?
+
+  a1  Int?
+  a2  Int?
+  b1  Int?
+  b2  Int?
+  b3  Int?
+  b4  Int?
+  b5  Int?
+  b6  Int?
+  c1  Int?
+  c2  Int?
+  c3  Int?
+  c4  Int?
+  c5  Int?
+  c6  Int?
+  c7  Int?
+  c8  Int?
+  c9  Int?
+  d1  Int?
+  d2  Int?
+  d3  Int?
+  d4  Int?
+  d5  Int?
+  d6  Int?
+  d7  Int?
+  d8  Int?
+
+  coordenadorCras String?
+  cpfCoordenador  String?
+  codigoIbge      String?
+
+  importadoEm  DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([mesReferencia, idCras])
+  @@index([mesReferencia])
+  @@index([idCras])
+}

@@ -11,6 +11,7 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 import bpcRoutes from "./routes/bpc.routes.js";
 import relatoriosRoutes from "./routes/relatorios.routes.js";
 import vigilanciaRoutes from "./routes/vigilancia.routes.js";
+import rmaRoutes from "./routes/rma.routes.js";
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use("/api/empreendimentos", empreendimentosRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/relatorios", relatoriosRoutes);
 app.use("/api/vigilancia", vigilanciaRoutes);
+app.use("/api/rma", rmaRoutes);
 
 app.use((error, _req, res, _next) => {
   if (error?.code === "LIMIT_FILE_SIZE") {

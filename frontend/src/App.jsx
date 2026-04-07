@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { VigilanciaDashboardPage } from "./pages/VigilanciaDashboardPage.jsx";
+import { RmaPanelPage } from "./pages/RmaPanelPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { api } from "./services/api.js";
 
@@ -50,6 +51,7 @@ export default function App() {
   }
 
   const isVigilancia = usuario?.role === "VIGILANCIA";
+  const podePainelRma = ["MASTER", "ADMIN", "VIGILANCIA"].includes(usuario?.role);
 
   return (
     <div className="app-shell">
@@ -62,6 +64,7 @@ export default function App() {
           {!usuario ? <Link to="/login">Login</Link> : null}
           {usuario && !isVigilancia ? <Link to="/dashboard">Dashboard</Link> : null}
           {usuario && isVigilancia ? <Link to="/vigilancia">Vigilancia</Link> : null}
+          {usuario && podePainelRma ? <Link to="/rma">Painel RMA</Link> : null}
           {usuario ? (
             <button type="button" className="ghost-btn" onClick={sair}>
               Sair
@@ -103,6 +106,18 @@ export default function App() {
                 <VigilanciaDashboardPage usuario={usuario} />
               ) : usuario && !isVigilancia ? (
                 <Navigate to="/dashboard" replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/rma"
+            element={
+              usuario && podePainelRma ? (
+                <RmaPanelPage usuario={usuario} />
+              ) : usuario ? (
+                <Navigate to={isVigilancia ? "/vigilancia" : "/dashboard"} replace />
               ) : (
                 <Navigate to="/login" replace />
               )
