@@ -130,6 +130,12 @@ export function RmaPopPanel({ usuario }) {
       .sort((a, b) => a - b);
   }, [periodos, ano]);
 
+  const nomeUnidadeFiltro = useMemo(() => {
+    if (!idUnidadeFiltro) return "";
+    const u = unidadesAno.find((x) => String(x.idUnidade) === String(idUnidadeFiltro));
+    return u?.nomeUnidade?.trim() || "";
+  }, [idUnidadeFiltro, unidadesAno]);
+
   async function enviarArquivo(e) {
     e.preventDefault();
     if (!arquivo) return;
@@ -280,6 +286,30 @@ export function RmaPopPanel({ usuario }) {
               </select>
             </div>
           </div>
+          {overview && !carregando ? (
+            <div className="rma-report-actions">
+              <button
+                type="button"
+                className="ghost-btn rma-pdf-btn"
+                onClick={async () => {
+                  const { exportRmaPopRelatorioPdf } = await import(
+                    "../utils/rmaPopPdfReport.js"
+                  );
+                  exportRmaPopRelatorioPdf({
+                    overview,
+                    indicadores,
+                    nomeUnidadeSelecionada: nomeUnidadeFiltro
+                  });
+                }}
+              >
+                Exportar relatorio PDF
+              </button>
+              <p className="muted small-margin-b rma-pdf-hint">
+                Usa o ano, mes e unidade selecionados acima. O PDF inclui apenas totais numericos
+                diferentes de zero na secao detalhada.
+              </p>
+            </div>
+          ) : null}
           {periodos.length === 0 ? (
             <p className="muted">
               Nenhum dado importado. {podeEnviar ? "Importe um CSV para comecar." : null}

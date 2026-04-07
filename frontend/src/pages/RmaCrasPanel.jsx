@@ -130,6 +130,12 @@ export function RmaCrasPanel({ usuario }) {
       .sort((a, b) => a - b);
   }, [periodos, ano]);
 
+  const nomeUnidadeFiltro = useMemo(() => {
+    if (!idCrasFiltro) return "";
+    const u = unidadesAno.find((x) => String(x.idCras) === String(idCrasFiltro));
+    return u?.nomeUnidade?.trim() || "";
+  }, [idCrasFiltro, unidadesAno]);
+
   async function enviarArquivo(e) {
     e.preventDefault();
     if (!arquivo) return;
@@ -282,6 +288,30 @@ export function RmaCrasPanel({ usuario }) {
               </select>
             </div>
           </div>
+          {overview && !carregando ? (
+            <div className="rma-report-actions">
+              <button
+                type="button"
+                className="ghost-btn rma-pdf-btn"
+                onClick={async () => {
+                  const { exportRmaCrasRelatorioPdf } = await import(
+                    "../utils/rmaCrasPdfReport.js"
+                  );
+                  exportRmaCrasRelatorioPdf({
+                    overview,
+                    indicadores,
+                    nomeUnidadeSelecionada: nomeUnidadeFiltro
+                  });
+                }}
+              >
+                Exportar relatorio PDF
+              </button>
+              <p className="muted small-margin-b rma-pdf-hint">
+                Usa o ano, mes e unidade selecionados acima. O PDF inclui apenas totais numericos
+                diferentes de zero na secao detalhada.
+              </p>
+            </div>
+          ) : null}
           {periodos.length === 0 ? (
             <p className="muted">
               Nenhum dado importado. {podeEnviar ? "Importe um CSV para comecar." : null}
