@@ -21,118 +21,67 @@ const uploadSingle = multer({
   limits: { fileSize: 1024 * 1024 * 64 }
 });
 
-const METRIC_KEYS = [
-  "a1",
-  "a2",
-  "b1",
-  "b2",
-  "b3",
-  "b4",
-  "b5",
-  "b6",
-  "c1",
-  "c2",
-  "c3",
-  "c4",
-  "c5",
-  "c6",
-  "c7",
-  "c8",
-  "c9",
-  "d1",
-  "d2",
-  "d3",
-  "d4",
-  "d5",
-  "d6",
-  "d7",
-  "d8"
-];
+const METADATA_KEYS = new Set([
+  "mes_referencia",
+  "nome_unidade",
+  "id_creas",
+  "endereco",
+  "municipio",
+  "uf",
+  "coordenador_creas",
+  "cpf",
+  "codigoibge"
+]);
 
-const sumFields = METRIC_KEYS.reduce((acc, k) => {
-  acc[k] = true;
-  return acc;
-}, {});
+const DESTAQUE_KEYS = ["a1", "a2", "b1", "c1", "m1", "m4"];
 
-function buildRecordFromRow(raw) {
-  const row = normalizeRowKeys(raw);
-  const mesReferencia = parseMesReferencia(row.mes_referencia);
-  const idCras = stripQuotes(row.id_cras);
-  if (!mesReferencia || !idCras) {
-    return { error: "mes_referencia ou id_cras invalido" };
-  }
-
-  const data = {
-    mesReferencia,
-    idCras,
-    nomeUnidade: stripQuotes(row.nome_unidade) || null,
-    endereco: stripQuotes(row.endereco) || null,
-    municipio: stripQuotes(row.municipio) || null,
-    uf: stripQuotes(row.uf) || null,
-    coordenadorCras: stripQuotes(row.coordenador_cras) || null,
-    cpfCoordenador: stripQuotes(row.cpf)?.replace(/\D/g, "") || null,
-    codigoIbge: stripQuotes(row.codigoibge) || null
-  };
-
-  for (const key of METRIC_KEYS) {
-    data[key] = parseIntMetric(row[key]);
-  }
-
-  return { data };
-}
-
-/** Ordem de exibicao: CRAS 1..8 pelo nome; Bonfim Paulista = 9; demais por ultimo */
-function ordemCras(nomeUnidade, idCras) {
+function ordemCreas(nomeUnidade) {
   const nome = (nomeUnidade || "").toLowerCase();
-  if (nome.includes("bonfim")) return 9;
-  const m = /cras\s*(\d+)/i.exec(nomeUnidade || "");
-  if (m) {
-    const n = parseInt(m[1], 10);
-    if (Number.isFinite(n) && n >= 1 && n <= 99) return n;
-  }
-  const tail = String(idCras || "").slice(-2);
-  const n2 = parseInt(tail, 10);
-  if (Number.isFinite(n2)) return 100 + n2;
-  return 500;
+  if (nome.includes("pop")) return 1;
+  const paefi = /paefi\s*(\d+)/i.exec(nomeUnidade || "");
+  if (paefi) return 10 + parseInt(paefi[1], 10);
+  return 100;
 }
 
-function sortPorCras(rows) {
+function sortPorCreas(rows) {
   return [...rows].sort((a, b) => {
-    const oa = ordemCras(a.nomeUnidade, a.idCras);
-    const ob = ordemCras(b.nomeUnidade, b.idCras);
+    const oa = ordemCreas(a.nomeUnidade);
+    const ob = ordemCreas(b.nomeUnidade);
     if (oa !== ob) return oa - ob;
-    return String(a.idCras).localeCompare(String(b.idCras), "pt-BR");
+    return String(a.idCreas || "").localeCompare(String(b.idCreas || ""), "pt-BR");
   });
 }
 
-function metricZeros() {
-  return METRIC_KEYS.reduce((acc, k) => {
-    acc[k] = 0;
-    return acc;
-  }, {});
-}
-
-function sumRowsMetrics(rows) {
-  const tot = metricZeros();
+function sumMetricasRows(rows) {
+  const tot = {};
   for (const row of rows) {
-    for (const k of METRIC_KEYS) {
-      tot[k] += toNum(row[k]);
+    const m = row.metricas;
+    if (!m || typeof m !== "object") continue;
+    for (const [k, v] of Object.entries(m)) {
+      tot[k] = (tot[k] || 0) + toNum(v);
     }
   }
   return tot;
 }
 
-function groupByCras(rows) {
+function mergeMetricas(into, from) {
+  const m = from || {};
+  for (const [k, v] of Object.entries(m)) {
+    into[k] = (into[k] || 0) + toNum(v);
+  }
+}
+
+function groupByCreas(rowsDb) {
   const map = new Map();
-  for (const row of rows) {
-    const id = row.idCras;
+  for (const row of rowsDb) {
+    const id = row.idCreas;
     if (!map.has(id)) {
       map.set(id, {
-        idCras: id,
+        idCreas: id,
         nomeUnidade: row.nomeUnidade,
         municipio: row.municipio,
         mesReferenciaMax: row.mesReferencia,
-        ...metricZeros()
+        metricas: {}
       });
     }
     const agg = map.get(id);
@@ -141,41 +90,66 @@ function groupByCras(rows) {
       agg.nomeUnidade = row.nomeUnidade;
       agg.municipio = row.municipio;
     }
-    for (const k of METRIC_KEYS) {
-      agg[k] += toNum(row[k]);
-    }
+    mergeMetricas(agg.metricas, row.metricas);
   }
   const list = Array.from(map.values()).map((agg) => {
-    const { mesReferenciaMax: _m, ...rest } = agg;
-    return rest;
+    const { mesReferenciaMax: _x, ...rest } = agg;
+    return {
+      ...rest,
+      destaques: destaquesFromMetricas(rest.metricas)
+    };
   });
-  return sortPorCras(list);
+  return sortPorCreas(list);
 }
 
-function mapRowToPorCras(row) {
-  const o = {
-    idCras: row.idCras,
-    nomeUnidade: row.nomeUnidade,
-    municipio: row.municipio
-  };
-  for (const k of METRIC_KEYS) {
-    const v = row[k];
-    o[k] = v == null ? null : toNum(v);
+function destaquesFromMetricas(metricas) {
+  const m = metricas || {};
+  const out = {};
+  for (const k of DESTAQUE_KEYS) {
+    out[k] = m[k] == null ? null : toNum(m[k]);
   }
-  return o;
+  return out;
 }
 
-function derivadosFromTotais(totaisMunicipio, quantidadeCras) {
-  const c2 = totaisMunicipio.c2;
-  const c3 = totaisMunicipio.c3;
-  const a1 = totaisMunicipio.a1;
-  const c1 = totaisMunicipio.c1;
+function buildRecordFromRow(raw) {
+  const row = normalizeRowKeys(raw);
+  const mesReferencia = parseMesReferencia(row.mes_referencia);
+  const idCreas = stripQuotes(row.id_creas);
+  if (!mesReferencia || !idCreas) {
+    return { error: "mes_referencia ou id_creas invalido" };
+  }
+
+  const metricas = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (METADATA_KEYS.has(k)) continue;
+    const num = parseIntMetric(v);
+    if (num !== null) metricas[k] = num;
+  }
+
   return {
-    encaminhamentosCadUnicoTotal: c2 + c3,
-    razaoEncaminhamentosCadUnicoSobreAcompanhamentoPAIF:
-      a1 > 0 ? (c2 + c3) / a1 : null,
-    mediaAtendimentosIndividualizadosPorCras:
-      quantidadeCras > 0 ? c1 / quantidadeCras : null
+    data: {
+      mesReferencia,
+      idCreas,
+      nomeUnidade: stripQuotes(row.nome_unidade) || null,
+      endereco: stripQuotes(row.endereco) || null,
+      municipio: stripQuotes(row.municipio) || null,
+      uf: stripQuotes(row.uf) || null,
+      coordenadorCreas: stripQuotes(row.coordenador_creas) || null,
+      cpfCoordenador: stripQuotes(row.cpf)?.replace(/\D/g, "") || null,
+      codigoIbge: stripQuotes(row.codigoibge) || null,
+      metricas
+    }
+  };
+}
+
+function derivadosCreas(totais, quantidadeUnidades) {
+  const a1 = toNum(totais.a1);
+  const a2 = toNum(totais.a2);
+  const m1 = toNum(totais.m1);
+  return {
+    mediaAtendimentosIndivPorUnidade:
+      quantidadeUnidades > 0 ? m1 / quantidadeUnidades : null,
+    razaoNovosCasosSobreAcompanhamento: a1 > 0 ? a2 / a1 : null
   };
 }
 
@@ -184,7 +158,7 @@ router.get(
   requireAuth,
   requireRole("MASTER", "ADMIN", "VIGILANCIA"),
   async (_req, res) => {
-    const itens = await prisma.rmaIndicadorDef.findMany({
+    const itens = await prisma.rmaCreasIndicadorDef.findMany({
       orderBy: { ordem: "asc" }
     });
     return res.json(itens);
@@ -196,7 +170,7 @@ router.get(
   requireAuth,
   requireRole("MASTER", "ADMIN", "VIGILANCIA"),
   async (_req, res) => {
-    const grupos = await prisma.rmaRegistroMensal.groupBy({
+    const grupos = await prisma.rmaCreasRegistroMensal.groupBy({
       by: ["mesReferencia"],
       _count: { id: true },
       orderBy: { mesReferencia: "desc" }
@@ -226,16 +200,16 @@ router.get(
       return res.status(400).json({
         error: true,
         message: "Informe ano valido",
-        code: "RMA_UNIDADES_INVALID_ANO"
+        code: "RMA_CREAS_UNIDADES_INVALID_ANO"
       });
     }
     const range = anoUtcRange(ano);
-    const rows = await prisma.rmaRegistroMensal.findMany({
+    const rows = await prisma.rmaCreasRegistroMensal.findMany({
       where: {
         mesReferencia: { gte: range.inicio, lt: range.fim }
       },
       select: {
-        idCras: true,
+        idCreas: true,
         nomeUnidade: true,
         mesReferencia: true
       },
@@ -243,15 +217,15 @@ router.get(
     });
     const seen = new Map();
     for (const r of rows) {
-      if (!seen.has(r.idCras)) {
-        seen.set(r.idCras, {
-          idCras: r.idCras,
+      if (!seen.has(r.idCreas)) {
+        seen.set(r.idCreas, {
+          idCreas: r.idCreas,
           nomeUnidade: r.nomeUnidade,
-          ordem: ordemCras(r.nomeUnidade, r.idCras)
+          ordem: ordemCreas(r.nomeUnidade)
         });
       }
     }
-    const lista = sortPorCras(Array.from(seen.values()));
+    const lista = sortPorCreas(Array.from(seen.values()));
     return res.json(lista);
   }
 );
@@ -263,15 +237,15 @@ router.get(
   async (req, res) => {
     const ano = Number(req.query?.ano);
     const mesParam = parseMesQuery(req.query?.mes);
-    const idCrasFiltro = req.query?.idCras
-      ? String(req.query.idCras).trim()
+    const idCreasFiltro = req.query?.idCreas
+      ? String(req.query.idCreas).trim()
       : null;
 
     if (!Number.isFinite(ano)) {
       return res.status(400).json({
         error: true,
         message: "Informe ano valido",
-        code: "RMA_OVERVIEW_INVALID_YEAR"
+        code: "RMA_CREAS_OVERVIEW_INVALID_YEAR"
       });
     }
 
@@ -279,7 +253,7 @@ router.get(
       return res.status(400).json({
         error: true,
         message: "Informe mes (1-12) ou TODOS para o ano inteiro",
-        code: "RMA_OVERVIEW_INVALID_MONTH"
+        code: "RMA_CREAS_OVERVIEW_INVALID_MONTH"
       });
     }
 
@@ -292,7 +266,7 @@ router.get(
         return res.status(400).json({
           error: true,
           message: "Mes invalido",
-          code: "RMA_OVERVIEW_INVALID_PERIOD"
+          code: "RMA_CREAS_OVERVIEW_INVALID_PERIOD"
         });
       }
       whereBase = { mesReferencia: mr };
@@ -303,52 +277,49 @@ router.get(
       };
     }
 
-    if (idCrasFiltro) {
-      whereBase.idCras = idCrasFiltro;
+    if (idCreasFiltro) {
+      whereBase.idCreas = idCreasFiltro;
     }
 
-    const rowsDb = await prisma.rmaRegistroMensal.findMany({
+    const rowsDb = await prisma.rmaCreasRegistroMensal.findMany({
       where: whereBase,
-      orderBy: [{ mesReferencia: "asc" }, { idCras: "asc" }]
+      orderBy: [{ mesReferencia: "asc" }, { idCreas: "asc" }]
     });
 
-    const rows = rowsDb.map((r) => mapRowToPorCras(r));
-
     let totaisMunicipio;
-    let quantidadeCras;
-    let porCras;
+    let quantidadeUnidades;
+    let porCreas;
 
     if (agregacao === "mes") {
-      const agg = await prisma.rmaRegistroMensal.aggregate({
-        where: whereBase,
-        _sum: sumFields,
-        _count: { id: true }
-      });
-      const s = agg._sum || {};
-      totaisMunicipio = {};
-      for (const k of METRIC_KEYS) {
-        totaisMunicipio[k] = toNum(s[k]);
-      }
-      quantidadeCras = idCrasFiltro
-        ? agg._count.id > 0
+      totaisMunicipio = sumMetricasRows(rowsDb);
+      quantidadeUnidades = idCreasFiltro
+        ? rowsDb.length > 0
           ? 1
           : 0
-        : agg._count.id;
-      porCras = sortPorCras(rows);
+        : rowsDb.length;
+      porCreas = sortPorCras(
+        rowsDb.map((r) => ({
+          idCreas: r.idCreas,
+          nomeUnidade: r.nomeUnidade,
+          municipio: r.municipio,
+          metricas: r.metricas,
+          destaques: destaquesFromMetricas(r.metricas)
+        }))
+      );
     } else {
-      totaisMunicipio = sumRowsMetrics(rows);
-      const distinctCras = new Set(rows.map((r) => r.idCras));
-      quantidadeCras = idCrasFiltro
-        ? distinctCras.size > 0
+      totaisMunicipio = sumMetricasRows(rowsDb);
+      const distinct = new Set(rowsDb.map((r) => r.idCreas));
+      quantidadeUnidades = idCreasFiltro
+        ? distinct.size > 0
           ? 1
           : 0
-        : distinctCras.size;
-      porCras = groupByCras(rowsDb);
+        : distinct.size;
+      porCreas = groupByCreas(rowsDb);
     }
 
-    const derivados = derivadosFromTotais(
+    const derivados = derivadosCreas(
       totaisMunicipio,
-      quantidadeCras > 0 ? quantidadeCras : 0
+      quantidadeUnidades > 0 ? quantidadeUnidades : 0
     );
 
     const range = anoUtcRange(ano);
@@ -357,21 +328,24 @@ router.get(
 
     return res.json({
       agregacao,
-      filtroIdCras: idCrasFiltro,
+      filtroIdCreas: idCreasFiltro,
       periodo: {
         ano,
         mes: agregacao === "mes" ? mesParam : null,
         mesReferencia: mrSingle ? mrSingle.toISOString() : null,
         mesReferenciaInicio: agregacao === "ano" ? range.inicio.toISOString() : null,
-        mesReferenciaFim: agregacao === "ano" ? new Date(range.fim.getTime() - 1).toISOString() : null
+        mesReferenciaFim:
+          agregacao === "ano"
+            ? new Date(range.fim.getTime() - 1).toISOString()
+            : null
       },
-      quantidadeCras,
+      quantidadeUnidades,
       totaisMunicipio,
       derivados,
-      porCras,
+      porCreas,
       aviso:
         agregacao === "ano"
-          ? "Visao anual: valores somados mes a mes. Indicadores de estoque (ex.: A.1) nao representam saldo unico; use o mes para esse tipo de leitura."
+          ? "Visao anual: valores somados mes a mes. Indicadores de estoque (ex.: A.1) nao representam saldo unico; use um mes para essa leitura."
           : null
     });
   }
@@ -387,7 +361,7 @@ router.post(
       return res.status(400).json({
         error: true,
         message: "Arquivo CSV ausente (campo arquivo)",
-        code: "RMA_UPLOAD_MISSING_FILE"
+        code: "RMA_CREAS_UPLOAD_MISSING_FILE"
       });
     }
 
@@ -407,7 +381,7 @@ router.post(
       return res.status(400).json({
         error: true,
         message: "CSV invalido ou ilegivel",
-        code: "RMA_UPLOAD_PARSE_ERROR",
+        code: "RMA_CREAS_UPLOAD_PARSE_ERROR",
         detalhe: String(e?.message || e)
       });
     }
@@ -422,11 +396,11 @@ router.post(
       if (batch.length === 0) return;
       await prisma.$transaction(
         batch.map((data) =>
-          prisma.rmaRegistroMensal.upsert({
+          prisma.rmaCreasRegistroMensal.upsert({
             where: {
-              mesReferencia_idCras: {
+              mesReferencia_idCreas: {
                 mesReferencia: data.mesReferencia,
-                idCras: data.idCras
+                idCreas: data.idCreas
               }
             },
             create: data,
@@ -435,13 +409,10 @@ router.post(
               endereco: data.endereco,
               municipio: data.municipio,
               uf: data.uf,
-              coordenadorCras: data.coordenadorCras,
+              coordenadorCreas: data.coordenadorCreas,
               cpfCoordenador: data.cpfCoordenador,
               codigoIbge: data.codigoIbge,
-              ...METRIC_KEYS.reduce((acc, k) => {
-                acc[k] = data[k];
-                return acc;
-              }, {})
+              metricas: data.metricas
             }
           })
         )

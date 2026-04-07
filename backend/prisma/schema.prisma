@@ -233,3 +233,33 @@ model RmaRegistroMensal {
   @@index([mesReferencia])
   @@index([idCras])
 }
+
+/// Definicoes de indicadores RMA CREAS (rotulos)
+model RmaCreasIndicadorDef {
+  codigo String @id
+  rotulo String
+  grupo  String?
+  ordem  Int    @default(0)
+}
+
+/// Registro mensal RMA por CREAS (chave: mes referencia + id_creas; metricas dinamicas em JSON)
+model RmaCreasRegistroMensal {
+  id               String   @id @default(uuid())
+  mesReferencia    DateTime
+  idCreas          String
+  nomeUnidade      String?
+  endereco         String?
+  municipio        String?
+  uf               String?
+  coordenadorCreas String?
+  cpfCoordenador   String?
+  codigoIbge       String?
+  metricas         Json
+
+  importadoEm  DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([mesReferencia, idCreas])
+  @@index([mesReferencia])
+  @@index([idCreas])
+}

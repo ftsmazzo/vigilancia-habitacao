@@ -3,9 +3,22 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
+import { decodeCsvBuffer } from "../src/utils/rmaCsv.js";
 
 const prisma = new PrismaClient();
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const META_CREAS = new Set([
+  "mes_referencia",
+  "nome_unidade",
+  "id_creas",
+  "endereco",
+  "municipio",
+  "uf",
+  "coordenador_creas",
+  "cpf",
+  "codigoibge"
+]);
 
 async function seedRmaIndicadores() {
   const raw = readFileSync(join(__dirname, "rma-indicadores.json"), "utf8");
@@ -24,6 +37,37 @@ async function seedRmaIndicadores() {
         grupo: ind.grupo,
         ordem: ind.ordem
       }
+    });
+  }
+}
+
+async function seedRmaCreasIndicadores() {
+  const buf = readFileSync(join(__dirname, "rma-creas-dicionario.csv"));
+  const text = decodeCsvBuffer(buf);
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  let ordem = 0;
+  for (const line of lines) {
+    const idx = line.indexOf(";");
+    if (idx <= 0) continue;
+    const codigo = line
+      .slice(0, idx)
+      .trim()
+      .replace(/^\ufeff/, "")
+      .toLowerCase();
+    if (!codigo || META_CREAS.has(codigo)) continue;
+    let rotulo = line.slice(idx + 1).trim();
+    if (
+      (rotulo.startsWith("'") && rotulo.endsWith("'")) ||
+      (rotulo.startsWith('"') && rotulo.endsWith('"'))
+    ) {
+      rotulo = rotulo.slice(1, -1);
+    }
+    const grupo = codigo[0] ? codigo[0].toUpperCase() : null;
+    ordem += 1;
+    await prisma.rmaCreasIndicadorDef.upsert({
+      where: { codigo },
+      update: { rotulo, grupo, ordem },
+      create: { codigo, rotulo, grupo, ordem }
     });
   }
 }
@@ -50,6 +94,7 @@ async function main() {
   });
 
   await seedRmaIndicadores();
+  await seedRmaCreasIndicadores();
 }
 
 main()

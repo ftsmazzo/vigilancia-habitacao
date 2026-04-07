@@ -12,6 +12,7 @@ import bpcRoutes from "./routes/bpc.routes.js";
 import relatoriosRoutes from "./routes/relatorios.routes.js";
 import vigilanciaRoutes from "./routes/vigilancia.routes.js";
 import rmaRoutes from "./routes/rma.routes.js";
+import rmaCreasRoutes from "./routes/rma-creas.routes.js";
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/relatorios", relatoriosRoutes);
 app.use("/api/vigilancia", vigilanciaRoutes);
 app.use("/api/rma", rmaRoutes);
+app.use("/api/rma-creas", rmaCreasRoutes);
 
 app.use((error, _req, res, _next) => {
   if (error?.code === "LIMIT_FILE_SIZE") {

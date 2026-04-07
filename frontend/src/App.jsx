@@ -64,7 +64,7 @@ export default function App() {
           {!usuario ? <Link to="/login">Login</Link> : null}
           {usuario && !isVigilancia ? <Link to="/dashboard">Dashboard</Link> : null}
           {usuario && isVigilancia ? <Link to="/vigilancia">Vigilancia</Link> : null}
-          {usuario && podePainelRma ? <Link to="/rma">RMA CRAS</Link> : null}
+          {usuario && podePainelRma ? <Link to="/rma">RMA</Link> : null}
           {usuario ? (
             <button type="button" className="ghost-btn" onClick={sair}>
               Sair
