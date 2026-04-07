@@ -20,6 +20,8 @@ export function RmaPanelPage({ usuario }) {
   const [periodos, setPeriodos] = useState([]);
   const [ano, setAno] = useState("");
   const [mes, setMes] = useState("");
+  const [idCrasFiltro, setIdCrasFiltro] = useState("");
+  const [unidadesAno, setUnidadesAno] = useState([]);
   const [overview, setOverview] = useState(null);
   const [indicadores, setIndicadores] = useState([]);
   const [carregando, setCarregando] = useState(false);
@@ -73,9 +75,9 @@ export function RmaPanelPage({ usuario }) {
       setCarregando(true);
       setErro("");
       try {
-        const { data } = await api.get("/rma/overview", {
-          params: { ano, mes }
-        });
+        const params = { ano, mes };
+        if (idCrasFiltro) params.idCras = idCrasFiltro;
+        const { data } = await api.get("/rma/overview", { params });
         if (!cancel) setOverview(data);
       } catch {
         if (!cancel) {
@@ -90,7 +92,27 @@ export function RmaPanelPage({ usuario }) {
     return () => {
       cancel = true;
     };
-  }, [ano, mes]);
+  }, [ano, mes, idCrasFiltro]);
+
+  useEffect(() => {
+    if (!ano) {
+      setUnidadesAno([]);
+      return;
+    }
+    let cancel = false;
+    async function loadUnidades() {
+      try {
+        const { data } = await api.get("/rma/unidades", { params: { ano } });
+        if (!cancel) setUnidadesAno(Array.isArray(data) ? data : []);
+      } catch {
+        if (!cancel) setUnidadesAno([]);
+      }
+    }
+    loadUnidades();
+    return () => {
+      cancel = true;
+    };
+  }, [ano]);
 
   const anosDisponiveis = useMemo(() => {
     const s = new Set();
@@ -105,6 +127,7 @@ export function RmaPanelPage({ usuario }) {
       .map((p) => p.mes)
       .sort((a, b) => a - b);
   }, [periodos, ano]);
+
 
   async function enviarArquivo(e) {
     e.preventDefault();
@@ -189,6 +212,7 @@ export function RmaPanelPage({ usuario }) {
                 onChange={(e) => {
                   setAno(e.target.value);
                   setMes("");
+                  setIdCrasFiltro("");
                 }}
               >
                 <option value="">Selecione</option>
@@ -208,9 +232,27 @@ export function RmaPanelPage({ usuario }) {
                 disabled={!ano}
               >
                 <option value="">Selecione</option>
+                {ano ? <option value="TODOS">Todos (somar o ano)</option> : null}
                 {mesesParaAno.map((m) => (
                   <option key={m} value={m}>
                     {String(m).padStart(2, "0")}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="metric-item">
+              <span>CRAS</span>
+              <select
+                className="enhanced-select"
+                value={idCrasFiltro}
+                onChange={(e) => setIdCrasFiltro(e.target.value)}
+                disabled={!ano}
+              >
+                <option value="">Todos os CRAS</option>
+                {unidadesAno.map((u) => (
+                  <option key={u.idCras} value={u.idCras}>
+                    {u.ordem != null ? `${u.ordem}. ` : ""}
+                    {u.nomeUnidade || u.idCras}
                   </option>
                 ))}
               </select>
@@ -229,12 +271,29 @@ export function RmaPanelPage({ usuario }) {
           </section>
         ) : overview ? (
           <>
+            {overview.aviso ? (
+              <section className="card">
+                <p className="muted">{overview.aviso}</p>
+              </section>
+            ) : null}
             <section className="card">
               <h3>
-                Municipio — {overview.periodo?.mes}/{overview.periodo?.ano}
+                {overview.filtroIdCras ? "CRAS selecionado" : "Municipio"} —{" "}
+                {overview.agregacao === "ano"
+                  ? `ano ${overview.periodo?.ano} (todos os meses)`
+                  : `${String(overview.periodo?.mes).padStart(2, "0")}/${overview.periodo?.ano}`}
               </h3>
               <p className="muted">
-                CRAS com registro no mes: <strong>{overview.quantidadeCras ?? 0}</strong>
+                {overview.agregacao === "ano"
+                  ? "CRAS no recorte: "
+                  : "CRAS com registro no mes: "}
+                <strong>{overview.quantidadeCras ?? 0}</strong>
+                {overview.filtroIdCras ? (
+                  <>
+                    {" "}
+                    · id_cras <strong>{overview.filtroIdCras}</strong>
+                  </>
+                ) : null}
               </p>
               <div className="metrics-grid">
                 {KPI_CHAVES.map((k) => {
@@ -252,7 +311,10 @@ export function RmaPanelPage({ usuario }) {
                   );
                 })}
                 <div className="metric-item">
-                  <span>Media C.1 por CRAS (no mes)</span>
+                  <span>
+                    Media C.1 por CRAS
+                    {overview.agregacao === "ano" ? " (visao anual)" : " (no mes)"}
+                  </span>
                   <strong>{formatNum(deriv.mediaAtendimentosIndividualizadosPorCras)}</strong>
                 </div>
                 <div className="metric-item">
