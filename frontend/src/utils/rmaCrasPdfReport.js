@@ -105,7 +105,7 @@ export function exportRmaCrasRelatorioPdf({
   const metaRows = [
     [
       "Origem dos dados",
-      "Sistema Vigilancia SUAS — importacao dos arquivos CSV do RMA CRAS (indicadores numericos agregados)."
+      "Sistema Vigilancia Socioassistencial SUAS — importacao dos arquivos CSV do RMA CRAS (indicadores numericos agregados)."
     ],
     ["Escopo", textoEscopo(overview, nomeUnidadeSelecionada)],
     ["Periodo", textoPeriodo(overview)],

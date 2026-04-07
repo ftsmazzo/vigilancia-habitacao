@@ -1,18 +1,18 @@
-# Vigilancia Habitacao
+# Vigilância Socioassistencial
 
-Sistema de Vigilancia Socioassistencial para cruzamento de dados CADU com listas de Habitacao.
+Sistema de vigilância socioassistencial para cruzamento de dados CADU com listas de candidatos a empreendimentos habitacionais.
 
 ## Estrutura
 
 - `backend/`: API REST (Node.js, Express, Prisma, PostgreSQL)
-- `frontend/`: Interface web (React + Vite + Tailwind)
+- `frontend/`: Interface web (React + Vite)
 - `docker-compose.yml`: ambiente local completo
 
 ## Deploy
 
 O deploy em producao e executado via EasyPanel, com servicos separados:
 
-- `backend-habitacao` usando `backend/Dockerfile`
-- `frontend-habitacao` usando `frontend/Dockerfile`
+- Imagem do **backend** usando `backend/Dockerfile`
+- Imagem do **frontend** usando `frontend/Dockerfile`
 
-As atualizacoes de schema no banco sao executadas automaticamente na inicializacao do backend via `prisma db push`.
+Na subida do container do backend, o schema e o seed rodam automaticamente (`prisma db push` e `node prisma/seed.js` no `CMD` do Dockerfile) — nao e necessario executar Prisma manualmente no EasyPanel.

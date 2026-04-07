@@ -119,7 +119,7 @@ export function exportRmaCreasRelatorioPdf({
   const metaRows = [
     [
       "Origem dos dados",
-      "Sistema Vigilancia SUAS — importacao dos arquivos CSV do RMA CREAS (indicadores numericos agregados)."
+      "Sistema Vigilancia Socioassistencial SUAS — importacao dos arquivos CSV do RMA CREAS (indicadores numericos agregados)."
     ],
     ["Escopo", textoEscopo(overview, nomeUnidadeSelecionada)],
     ["Periodo", textoPeriodo(overview)],

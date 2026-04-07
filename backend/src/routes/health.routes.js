@@ -7,7 +7,7 @@ router.get("/health", async (_req, res) => {
   await prisma.$queryRaw`SELECT 1`;
   return res.json({
     ok: true,
-    service: "backend-habitacao",
+    service: "vigilancia-socioassistencial-api",
     timestamp: new Date().toISOString()
   });
 });

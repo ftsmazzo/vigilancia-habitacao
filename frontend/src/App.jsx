@@ -57,7 +57,7 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div>
-          <h1>Vigilancia Habitacao</h1>
+          <h1>Vigilância Socioassistencial</h1>
           <small>Painel socioassistencial de cruzamento CADU</small>
         </div>
         <nav>

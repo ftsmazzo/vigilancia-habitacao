@@ -36,7 +36,7 @@ app.use((req, res, next) => {
 app.get("/", (_req, res) => {
   return res.json({
     ok: true,
-    service: "backend-habitacao",
+    service: "vigilancia-socioassistencial-api",
     docs: "/api/health"
   });
 });

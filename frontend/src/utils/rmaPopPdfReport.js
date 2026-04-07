@@ -107,7 +107,7 @@ export function exportRmaPopRelatorioPdf({
   const metaRows = [
     [
       "Origem dos dados",
-      "Sistema Vigilancia SUAS — importacao dos arquivos CSV do RMA Centro POP (indicadores numericos agregados)."
+      "Sistema Vigilancia Socioassistencial SUAS — importacao dos arquivos CSV do RMA Centro POP (indicadores numericos agregados)."
     ],
     ["Escopo", textoEscopo(overview, nomeUnidadeSelecionada)],
     ["Periodo", textoPeriodo(overview)],
