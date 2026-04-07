@@ -32,7 +32,7 @@ function textoPeriodo(overview) {
 function textoEscopo(overview, nomeUnidade) {
   if (overview?.filtroIdCras) {
     const nome = nomeUnidade?.trim() || "CRAS selecionado";
-    return `Unidade: ${nome} — identificador ${overview.filtroIdCras}.`;
+    return `Unidade: ${nome} — id ${overview.filtroIdCras}.`;
   }
   return "Escopo: todos os equipamentos CRAS do municipio com registro no periodo.";
 }
@@ -254,7 +254,7 @@ export function exportRmaCrasRelatorioPdf({
     y += 5;
 
     const bodyUn = porCras.map((row) => [
-      row.nomeUnidade || "—",
+      row.nomeExibicao || row.nomeUnidade || "—",
       fmtInt(row.a1),
       fmtInt(row.c1),
       fmtInt((row.c2 ?? 0) + (row.c3 ?? 0)),

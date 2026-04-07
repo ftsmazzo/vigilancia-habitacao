@@ -186,6 +186,13 @@ model RmaIndicadorDef {
   ordem  Int    @default(0)
 }
 
+/// Nomes padrao para exibicao (ASCII) por id_cras — evita caracteres corrompidos do CSV oficial
+model RmaCrasUnidadeDef {
+  idCras       String @id
+  rotuloPadrao String
+  ordem        Int    @default(0)
+}
+
 /// Registro mensal RMA por CRAS (chave natural: mes referencia + id_cras)
 model RmaRegistroMensal {
   id            String   @id @default(uuid())

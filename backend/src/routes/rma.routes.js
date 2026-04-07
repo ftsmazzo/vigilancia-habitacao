@@ -96,15 +96,6 @@ function ordemCras(nomeUnidade, idCras) {
   return 500;
 }
 
-function sortPorCras(rows) {
-  return [...rows].sort((a, b) => {
-    const oa = ordemCras(a.nomeUnidade, a.idCras);
-    const ob = ordemCras(b.nomeUnidade, b.idCras);
-    if (oa !== ob) return oa - ob;
-    return String(a.idCras).localeCompare(String(b.idCras), "pt-BR");
-  });
-}
-
 function metricZeros() {
   return METRIC_KEYS.reduce((acc, k) => {
     acc[k] = 0;
@@ -122,7 +113,7 @@ function sumRowsMetrics(rows) {
   return tot;
 }
 
-function groupByCras(rows) {
+function groupByCras(rows, defMap) {
   const map = new Map();
   for (const row of rows) {
     const id = row.idCras;
@@ -149,7 +140,7 @@ function groupByCras(rows) {
     const { mesReferenciaMax: _m, ...rest } = agg;
     return rest;
   });
-  return sortPorCras(list);
+  return sortPorCras(list, defMap);
 }
 
 function mapRowToPorCras(row) {
@@ -176,6 +167,39 @@ function derivadosFromTotais(totaisMunicipio, quantidadeCras) {
       a1 > 0 ? (c2 + c3) / a1 : null,
     mediaAtendimentosIndividualizadosPorCras:
       quantidadeCras > 0 ? c1 / quantidadeCras : null
+  };
+}
+
+async function loadCrasDefMap() {
+  const rows = await prisma.rmaCrasUnidadeDef.findMany();
+  return new Map(rows.map((r) => [r.idCras, r]));
+}
+
+function nomeExibicaoCras(idCras, nomeUnidade, defMap) {
+  const d = defMap.get(idCras);
+  if (d?.rotuloPadrao) return d.rotuloPadrao;
+  return `CRAS (id ${String(idCras || "").trim()})`;
+}
+
+function ordemCrasComDef(idCras, nomeUnidade, defMap) {
+  const d = defMap.get(idCras);
+  if (d != null && Number.isFinite(d.ordem)) return d.ordem;
+  return ordemCras(nomeUnidade, idCras);
+}
+
+function sortPorCras(rows, defMap) {
+  return [...rows].sort((a, b) => {
+    const oa = ordemCrasComDef(a.idCras, a.nomeUnidade, defMap);
+    const ob = ordemCrasComDef(b.idCras, b.nomeUnidade, defMap);
+    if (oa !== ob) return oa - ob;
+    return String(a.idCras).localeCompare(String(b.idCras), "pt-BR");
+  });
+}
+
+function enrichPorCras(row, defMap) {
+  return {
+    ...row,
+    nomeExibicao: nomeExibicaoCras(row.idCras, row.nomeUnidade, defMap)
   };
 }
 
@@ -230,6 +254,7 @@ router.get(
       });
     }
     const range = anoUtcRange(ano);
+    const defMap = await loadCrasDefMap();
     const rows = await prisma.rmaRegistroMensal.findMany({
       where: {
         mesReferencia: { gte: range.inicio, lt: range.fim }
@@ -247,11 +272,14 @@ router.get(
         seen.set(r.idCras, {
           idCras: r.idCras,
           nomeUnidade: r.nomeUnidade,
-          ordem: ordemCras(r.nomeUnidade, r.idCras)
+          ordem: ordemCrasComDef(r.idCras, r.nomeUnidade, defMap)
         });
       }
     }
-    const lista = sortPorCras(Array.from(seen.values()));
+    const lista = sortPorCras(Array.from(seen.values()), defMap).map((u) => ({
+      ...u,
+      nomeExibicao: nomeExibicaoCras(u.idCras, u.nomeUnidade, defMap)
+    }));
     return res.json(lista);
   }
 );
@@ -307,6 +335,8 @@ router.get(
       whereBase.idCras = idCrasFiltro;
     }
 
+    const defMap = await loadCrasDefMap();
+
     const rowsDb = await prisma.rmaRegistroMensal.findMany({
       where: whereBase,
       orderBy: [{ mesReferencia: "asc" }, { idCras: "asc" }]
@@ -334,7 +364,7 @@ router.get(
           ? 1
           : 0
         : agg._count.id;
-      porCras = sortPorCras(rows);
+      porCras = sortPorCras(rows, defMap).map((r) => enrichPorCras(r, defMap));
     } else {
       totaisMunicipio = sumRowsMetrics(rows);
       const distinctCras = new Set(rows.map((r) => r.idCras));
@@ -343,7 +373,7 @@ router.get(
           ? 1
           : 0
         : distinctCras.size;
-      porCras = groupByCras(rowsDb);
+      porCras = groupByCras(rowsDb, defMap).map((r) => enrichPorCras(r, defMap));
     }
 
     const derivados = derivadosFromTotais(

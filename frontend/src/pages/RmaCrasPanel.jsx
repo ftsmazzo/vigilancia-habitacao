@@ -133,7 +133,7 @@ export function RmaCrasPanel({ usuario }) {
   const nomeUnidadeFiltro = useMemo(() => {
     if (!idCrasFiltro) return "";
     const u = unidadesAno.find((x) => String(x.idCras) === String(idCrasFiltro));
-    return u?.nomeUnidade?.trim() || "";
+    return u?.nomeExibicao?.trim() || u?.nomeUnidade?.trim() || "";
   }, [idCrasFiltro, unidadesAno]);
 
   async function enviarArquivo(e) {
@@ -282,7 +282,7 @@ export function RmaCrasPanel({ usuario }) {
                 {unidadesAno.map((u) => (
                   <option key={u.idCras} value={u.idCras}>
                     {u.ordem != null ? `${u.ordem}. ` : ""}
-                    {u.nomeUnidade || `Unidade ${u.idCras}`}
+                    {u.nomeExibicao || u.nomeUnidade || `Unidade ${u.idCras}`}
                   </option>
                 ))}
               </select>
@@ -389,7 +389,9 @@ export function RmaCrasPanel({ usuario }) {
                   <tbody>
                     {(overview.porCras || []).map((row) => (
                       <tr key={row.idCras}>
-                        <td className="rma-col-unidade">{row.nomeUnidade || "—"}</td>
+                        <td className="rma-col-unidade">
+                          {row.nomeExibicao || row.nomeUnidade || "—"}
+                        </td>
                         <td>{formatNum(row.a1)}</td>
                         <td>{formatNum(row.c1)}</td>
                         <td>{formatNum((row.c2 ?? 0) + (row.c3 ?? 0))}</td>

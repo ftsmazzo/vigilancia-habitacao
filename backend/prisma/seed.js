@@ -54,6 +54,25 @@ async function seedRmaIndicadores() {
   }
 }
 
+async function seedRmaCrasUnidadesPadrao() {
+  const raw = readFileSync(join(__dirname, "rma-cras-unidades.json"), "utf8");
+  const unidades = JSON.parse(raw);
+  for (const u of unidades) {
+    await prisma.rmaCrasUnidadeDef.upsert({
+      where: { idCras: u.idCras },
+      update: {
+        rotuloPadrao: u.rotuloPadrao,
+        ordem: u.ordem
+      },
+      create: {
+        idCras: u.idCras,
+        rotuloPadrao: u.rotuloPadrao,
+        ordem: u.ordem
+      }
+    });
+  }
+}
+
 async function seedRmaCreasIndicadores() {
   const buf = readFileSync(join(__dirname, "rma-creas-dicionario.csv"));
   const text = decodeCsvBuffer(buf);
@@ -138,6 +157,7 @@ async function main() {
   });
 
   await seedRmaIndicadores();
+  await seedRmaCrasUnidadesPadrao();
   await seedRmaCreasIndicadores();
   await seedRmaPopIndicadores();
 }

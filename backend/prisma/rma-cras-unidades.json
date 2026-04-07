@@ -1,0 +1,62 @@
+[
+  {
+    "idCras": "35434003454",
+    "rotuloPadrao": "CRAS 01",
+    "ordem": 1
+  },
+  {
+    "idCras": "35434003939",
+    "rotuloPadrao": "CRAS 02",
+    "ordem": 2
+  },
+  {
+    "idCras": "35434003964",
+    "rotuloPadrao": "CRAS 03",
+    "ordem": 3
+  },
+  {
+    "idCras": "35434003456",
+    "rotuloPadrao": "CRAS 04",
+    "ordem": 4
+  },
+  {
+    "idCras": "35434003859",
+    "rotuloPadrao": "CRAS 05",
+    "ordem": 5
+  },
+  {
+    "idCras": "35434038956",
+    "rotuloPadrao": "CRAS 06",
+    "ordem": 6
+  },
+  {
+    "idCras": "35434039259",
+    "rotuloPadrao": "CRAS 07",
+    "ordem": 7
+  },
+  {
+    "idCras": "35434039963",
+    "rotuloPadrao": "CRAS 08",
+    "ordem": 8
+  },
+  {
+    "idCras": "35434039977",
+    "rotuloPadrao": "CRAS BONFIM PAULISTA",
+    "ordem": 9
+  },
+  {
+    "idCras": "35434040155",
+    "rotuloPadrao": "CRAS 10",
+    "ordem": 10
+  },
+  {
+    "idCras": "35434040163",
+    "rotuloPadrao": "CRAS 11",
+    "ordem": 11
+  },
+  {
+    "idCras": "35434040393",
+    "rotuloPadrao": "CRAS 12",
+    "ordem": 12
+  }
+]
