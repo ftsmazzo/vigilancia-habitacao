@@ -5,6 +5,7 @@ import {
   ragBaseUrl,
   ragKnowledgeBaseId
 } from "../utils/ragClient.js";
+import { resolveOpenAiModel } from "../utils/openaiModel.js";
 
 const router = Router();
 
@@ -60,7 +61,7 @@ async function openaiChatCompletions(messages) {
     throw err;
   }
 
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const model = resolveOpenAiModel();
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -215,13 +216,20 @@ router.get(
   requireAuth,
   requireRole("MASTER", "ADMIN", "HABITACAO", "VIGILANCIA"),
   (_req, res) => {
+    const resolved = resolveOpenAiModel();
     return res.json({
       ok: true,
       ragConfigured: Boolean(process.env.RAG_API_KEY?.trim()),
       llmConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
       knowledgeBaseId: ragKnowledgeBaseId(),
       baseUrl: ragBaseUrl(),
-      openaiModel: process.env.OPENAI_MODEL || "gpt-4o-mini"
+      openaiModel: resolved,
+      openaiModelEnv: process.env.OPENAI_MODEL?.trim() || null,
+      openaiModelHint:
+        process.env.OPENAI_MODEL?.trim() &&
+        process.env.OPENAI_MODEL.trim() !== resolved
+          ? `Valor em OPENAI_MODEL foi normalizado para "${resolved}" (use sempre o ID completo na OpenAI, ex.: gpt-4.1).`
+          : null
     });
   }
 );

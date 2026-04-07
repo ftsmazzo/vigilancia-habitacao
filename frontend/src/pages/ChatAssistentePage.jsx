@@ -111,6 +111,9 @@ export function ChatAssistentePage({ usuario }) {
         ) : (
           <p className="muted small-margin-b">
             Modelo: <strong>{status?.openaiModel || "gpt-4o-mini"}</strong>
+            {status?.openaiModelHint ? (
+              <span className="muted"> — {status.openaiModelHint}</span>
+            ) : null}
             {ragOk ? (
               <>
                 {" "}
