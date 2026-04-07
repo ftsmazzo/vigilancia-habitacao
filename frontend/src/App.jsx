@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { VigilanciaDashboardPage } from "./pages/VigilanciaDashboardPage.jsx";
 import { RmaPanelPage } from "./pages/RmaPanelPage.jsx";
+import { ChatAssistentePage } from "./pages/ChatAssistentePage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { api } from "./services/api.js";
 
@@ -65,6 +66,7 @@ export default function App() {
           {usuario && !isVigilancia ? <Link to="/dashboard">Dashboard</Link> : null}
           {usuario && isVigilancia ? <Link to="/vigilancia">Vigilancia</Link> : null}
           {usuario && podePainelRma ? <Link to="/rma">RMA</Link> : null}
+          {usuario ? <Link to="/assistente">Assistente</Link> : null}
           {usuario ? (
             <button type="button" className="ghost-btn" onClick={sair}>
               Sair
@@ -118,6 +120,16 @@ export default function App() {
                 <RmaPanelPage usuario={usuario} />
               ) : usuario ? (
                 <Navigate to={isVigilancia ? "/vigilancia" : "/dashboard"} replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/assistente"
+            element={
+              usuario ? (
+                <ChatAssistentePage usuario={usuario} />
               ) : (
                 <Navigate to="/login" replace />
               )
