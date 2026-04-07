@@ -4,26 +4,21 @@ import { api } from "../services/api.js";
 export function ChatAssistentePage({ usuario }) {
   const [mensagens, setMensagens] = useState([]);
   const [texto, setTexto] = useState("");
+  const [contextoPainel, setContextoPainel] = useState("");
+  const [usarRag, setUsarRag] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
-  const [ragOk, setRagOk] = useState(null);
-  const [kbInfo, setKbInfo] = useState(null);
+  const [status, setStatus] = useState(null);
   const fimRef = useRef(null);
 
   useEffect(() => {
     let cancel = false;
     async function loadStatus() {
       try {
-        const { data } = await api.get("/chat-rag/status");
-        if (!cancel) {
-          setRagOk(data?.ragConfigured === true);
-          setKbInfo({
-            knowledgeBaseId: data?.knowledgeBaseId,
-            baseUrl: data?.baseUrl
-          });
-        }
+        const { data } = await api.get("/assistente/status");
+        if (!cancel) setStatus(data);
       } catch {
-        if (!cancel) setRagOk(false);
+        if (!cancel) setStatus({ llmConfigured: false, ragConfigured: false });
       }
     }
     loadStatus();
@@ -36,34 +31,47 @@ export function ChatAssistentePage({ usuario }) {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens, enviando]);
 
+  function parseContextoPainel() {
+    const raw = contextoPainel.trim();
+    if (!raw) return undefined;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return raw;
+    }
+  }
+
   async function enviar(e) {
     e.preventDefault();
     const q = texto.trim();
     if (!q || enviando) return;
+    if (!status?.llmConfigured) {
+      setErro("Configure OPENAI_API_KEY no backend para usar o assistente.");
+      return;
+    }
     setErro("");
     setTexto("");
-    setMensagens((m) => [...m, { role: "user", text: q }]);
+    setMensagens((m) => [...m, { role: "user", text: q, contexto: contextoPainel.trim() || null }]);
     setEnviando(true);
     try {
-      const { data } = await api.post("/chat-rag/query", { query: q, topK: 5 });
-      const payload = data?.data;
-      const answer = payload?.answer ?? data?.answer ?? "(Sem resposta no formato esperado.)";
-      const sources = payload?.sources ?? data?.sources;
-      const ms = payload?.processingTime ?? data?.processingTime;
+      const { data } = await api.post("/assistente/chat", {
+        message: q,
+        contextoPainel: parseContextoPainel(),
+        usarRag
+      });
       setMensagens((m) => [
         ...m,
         {
           role: "assistant",
-          text: String(answer),
-          sources: Array.isArray(sources) ? sources : null,
-          processingTime: ms
+          text: data?.answer ?? "(Sem texto.)",
+          meta: data
         }
       ]);
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Falha ao consultar o assistente.";
+        "Falha ao gerar resposta.";
       setErro(msg);
       setMensagens((m) => [
         ...m,
@@ -78,30 +86,41 @@ export function ChatAssistentePage({ usuario }) {
     }
   }
 
+  const llmOk = status?.llmConfigured === true;
+  const ragOk = status?.ragConfigured === true;
+
   return (
     <div className="chat-rag-shell">
       <section className="card">
-        <h2>Assistente (base de conhecimento)</h2>
+        <h2>Assistente inteligente</h2>
         <p className="muted small-margin-b">
-          Consulta semantica ao servico RAG da sua organizacao. A API key fica apenas no servidor;
-          configure <code className="inline-code">RAG_API_KEY</code> no backend.
+          O modelo recebe seu pedido, o <strong>contexto operacional</strong> (opcional) e trechos da{" "}
+          <strong>base RAG</strong> apenas como <strong>apoio teorico</strong> — a resposta final e
+          sintetizada pelo modelo, sem tratar o RAG como fonte unica.
         </p>
         {usuario?.email ? (
           <p className="muted small-margin-b">
             Usuario: <strong>{usuario.email}</strong> ({usuario.role})
           </p>
         ) : null}
-        {ragOk === false ? (
+        {!llmOk ? (
           <p className="error-text">
-            Assistente desativado: defina a variavel <strong>RAG_API_KEY</strong> no ambiente do
-            backend e reinicie o servico.
+            Defina <code className="inline-code">OPENAI_API_KEY</code> no backend (EasyPanel) para
+            ativar o orquestrador.
           </p>
-        ) : null}
-        {ragOk === true && kbInfo ? (
+        ) : (
           <p className="muted small-margin-b">
-            Base de conhecimento ID <strong>{kbInfo.knowledgeBaseId}</strong>
+            Modelo: <strong>{status?.openaiModel || "gpt-4o-mini"}</strong>
+            {ragOk ? (
+              <>
+                {" "}
+                · RAG base ID <strong>{status?.knowledgeBaseId}</strong>
+              </>
+            ) : (
+              <span> · RAG opcional (sem chave, apenas contexto + pedido)</span>
+            )}
           </p>
-        ) : null}
+        )}
         {erro && !mensagens.length ? <p className="error-text">{erro}</p> : null}
       </section>
 
@@ -110,8 +129,8 @@ export function ChatAssistentePage({ usuario }) {
         <div className="chat-rag-messages">
           {mensagens.length === 0 ? (
             <p className="muted">
-              Faça uma pergunta sobre o conteudo indexado na base (documentos, normas, enderecos,
-              etc.). As respostas dependem dos arquivos que voce enviou ao RAG.
+              Descreva o que precisa (texto, minuta, paragrafo). Opcionalmente cole abaixo numeros ou
+              JSON do painel (RMA, etc.) como contexto operacional.
             </p>
           ) : null}
           {mensagens.map((msg, i) => (
@@ -119,46 +138,99 @@ export function ChatAssistentePage({ usuario }) {
               key={i}
               className={`chat-bubble ${msg.role} ${msg.isError ? "error-text" : ""}`}
             >
+              {msg.role === "user" && msg.contexto ? (
+                <details className="chat-user-context" style={{ marginBottom: 8 }}>
+                  <summary className="muted" style={{ cursor: "pointer", fontSize: "0.85rem" }}>
+                    Contexto enviado nesta mensagem
+                  </summary>
+                  <pre
+                    style={{
+                      marginTop: 6,
+                      fontSize: "0.8rem",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word"
+                    }}
+                  >
+                    {msg.contexto}
+                  </pre>
+                </details>
+              ) : null}
               {msg.text}
-              {msg.role === "assistant" && msg.sources?.length ? (
+              {msg.role === "assistant" && msg.meta?.rag && !msg.isError ? (
                 <div className="chat-rag-sources">
                   <details>
-                    <summary>Fontes ({msg.sources.length})</summary>
-                    <ul style={{ margin: "8px 0 0", paddingLeft: "1.2rem" }}>
-                      {msg.sources.map((s, j) => (
-                        <li key={j}>
-                          {s.filename || s.documentId || "doc"} — similaridade{" "}
-                          {s.similarity != null ? Number(s.similarity).toFixed(2) : "—"}
-                        </li>
-                      ))}
-                    </ul>
+                    <summary>
+                      Como a resposta foi apoiada (RAG:{" "}
+                      {msg.meta.rag.used ? "sim" : "nao"}
+                      {msg.meta.rag.error ? ` — ${msg.meta.rag.error}` : ""})
+                    </summary>
+                    {msg.meta.rag.rawAnswer ? (
+                      <p style={{ marginTop: 8 }}>
+                        <span className="muted">Sintese bruta da busca: </span>
+                        {String(msg.meta.rag.rawAnswer).slice(0, 800)}
+                        {String(msg.meta.rag.rawAnswer).length > 800 ? "…" : ""}
+                      </p>
+                    ) : null}
+                    {msg.meta.rag.sources?.length ? (
+                      <ul style={{ margin: "8px 0 0", paddingLeft: "1.2rem" }}>
+                        {msg.meta.rag.sources.map((s, j) => (
+                          <li key={j}>
+                            {s.filename || s.documentId || "doc"} — similaridade{" "}
+                            {s.similarity != null ? Number(s.similarity).toFixed(2) : "—"}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {msg.meta.usage ? (
+                      <p className="muted" style={{ marginTop: 8, fontSize: "0.8rem" }}>
+                        Tokens: {JSON.stringify(msg.meta.usage)}
+                      </p>
+                    ) : null}
                   </details>
-                  {msg.processingTime != null ? (
-                    <span className="muted"> Tempo: {msg.processingTime} ms</span>
-                  ) : null}
                 </div>
               ) : null}
             </div>
           ))}
           {enviando ? (
-            <div className="chat-bubble assistant muted">Consultando a base...</div>
+            <div className="chat-bubble assistant muted">
+              Consultando RAG (se ativo) e gerando resposta com o modelo...
+            </div>
           ) : null}
           <div ref={fimRef} />
         </div>
 
         <form className="chat-rag-form" onSubmit={enviar}>
           <label>
-            Sua pergunta
+            Contexto operacional (opcional)
+            <textarea
+              value={contextoPainel}
+              onChange={(e) => setContextoPainel(e.target.value)}
+              placeholder='Cole totais, recorte do painel ou JSON. Ex.: {"totaisMunicipio":{"c1":120},"periodo":"03/2024"}'
+              disabled={enviando}
+              style={{ minHeight: 72 }}
+            />
+          </label>
+          <label className="chat-rag-checkbox">
+            <input
+              type="checkbox"
+              checked={usarRag}
+              onChange={(e) => setUsarRag(e.target.checked)}
+              disabled={enviando}
+            />
+            Incluir busca na base de conhecimento (RAG) como apoio teorico
+          </label>
+          <label>
+            Seu pedido
             <textarea
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
-              placeholder="Ex.: Qual o endereco do CRAS 3?"
-              disabled={enviando || ragOk === false}
+              placeholder="Ex.: Redija um paragrafo para o relatorio municipal citando os totais do contexto e alinhando ao que diz a norma."
+              disabled={enviando || !llmOk}
             />
           </label>
           <div className="chat-rag-actions">
-            <button type="submit" disabled={enviando || !texto.trim() || ragOk === false}>
-              {enviando ? "Enviando..." : "Enviar"}
+            <button type="submit" disabled={enviando || !texto.trim() || !llmOk}>
+              {enviando ? "Gerando..." : "Enviar"}
             </button>
           </div>
         </form>
@@ -166,16 +238,15 @@ export function ChatAssistentePage({ usuario }) {
 
       <section className="card">
         <p className="muted" style={{ fontSize: "0.85rem", margin: 0 }}>
-          Documentacao da API RAG:{" "}
+          API RAG:{" "}
           <a
             href="https://saas-agentes-sistema-rag.90qhxz.easypanel.host/api-docs"
             target="_blank"
             rel="noreferrer"
           >
-            saas-agentes-sistema-rag / api-docs
+            documentacao
           </a>
-          . As respostas sao geradas a partir da base indexada; revise antes de usar em documentos
-          oficiais.
+          . Revise sempre o texto antes de uso oficial.
         </p>
       </section>
     </div>

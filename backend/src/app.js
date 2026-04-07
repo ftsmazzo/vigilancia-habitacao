@@ -15,6 +15,7 @@ import rmaRoutes from "./routes/rma.routes.js";
 import rmaCreasRoutes from "./routes/rma-creas.routes.js";
 import rmaPopRoutes from "./routes/rma-pop.routes.js";
 import chatRagRoutes from "./routes/chat-rag.routes.js";
+import assistenteRoutes from "./routes/assistente.routes.js";
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use("/api/rma", rmaRoutes);
 app.use("/api/rma-creas", rmaCreasRoutes);
 app.use("/api/rma-pop", rmaPopRoutes);
 app.use("/api/chat-rag", chatRagRoutes);
+app.use("/api/assistente", assistenteRoutes);
 
 app.use((error, _req, res, _next) => {
   if (error?.code === "LIMIT_FILE_SIZE") {

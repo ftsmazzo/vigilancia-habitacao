@@ -1,31 +1,19 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { consultarRag, ragBaseUrl, ragKnowledgeBaseId } from "../utils/ragClient.js";
 
 const router = Router();
 
-function ragBaseUrl() {
-  return (
-    process.env.RAG_API_BASE_URL ||
-    "https://saas-agentes-sistema-rag.90qhxz.easypanel.host"
-  ).replace(/\/$/, "");
-}
-
-function ragKnowledgeBaseId() {
-  return String(process.env.RAG_KNOWLEDGE_BASE_ID || "4").trim();
-}
-
 /**
- * Proxy para o servico RAG documentado em:
- * https://saas-agentes-sistema-rag.90qhxz.easypanel.host/api-docs
- * POST /api/kb/{id}/query — body: { query, topK }
+ * Proxy direto ao RAG (debug / integracoes legadas).
+ * Fluxo principal do usuario: POST /api/assistente/chat (LLM + RAG como apoio).
  */
 router.post(
   "/query",
   requireAuth,
   requireRole("MASTER", "ADMIN", "HABITACAO", "VIGILANCIA"),
   async (req, res) => {
-    const apiKey = process.env.RAG_API_KEY;
-    if (!apiKey?.trim()) {
+    if (!process.env.RAG_API_KEY?.trim()) {
       return res.status(503).json({
         error: true,
         message:
@@ -56,54 +44,36 @@ router.post(
       Math.max(1, Number.isFinite(Number(topKRaw)) ? Number(topKRaw) : 5)
     );
 
-    const idKb = ragKnowledgeBaseId();
-    const url = `${ragBaseUrl()}/api/kb/${idKb}/query`;
-
-    let upstream;
-    try {
-      upstream = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey.trim()}`
-        },
-        body: JSON.stringify({ query, topK })
+    const result = await consultarRag({ query, topK });
+    if (result.skip) {
+      return res.status(503).json({
+        error: true,
+        message: "RAG nao configurado",
+        code: "RAG_NOT_CONFIGURED"
       });
-    } catch (e) {
-      console.error("RAG fetch error:", e);
+    }
+    if (result.networkError) {
       return res.status(502).json({
         error: true,
         message: "Nao foi possivel contatar o servico RAG",
         code: "RAG_NETWORK_ERROR"
       });
     }
-
-    const rawText = await upstream.text();
-    let body;
-    try {
-      body = rawText ? JSON.parse(rawText) : {};
-    } catch {
-      return res.status(502).json({
-        error: true,
-        message: "Resposta invalida do servico RAG",
-        code: "RAG_INVALID_RESPONSE"
-      });
+    if (!result.ok) {
+      return res
+        .status(result.status >= 400 && result.status < 600 ? result.status : 502)
+        .json({
+          error: true,
+          message:
+            result.body?.message ||
+            result.body?.error ||
+            `Servico RAG retornou erro (${result.status})`,
+          code: "RAG_UPSTREAM_ERROR",
+          detalhe: result.body
+        });
     }
 
-    if (!upstream.ok) {
-      return res.status(upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502).json({
-        error: true,
-        message:
-          body?.message ||
-          body?.error ||
-          `Servico RAG retornou erro (${upstream.status})`,
-        code: "RAG_UPSTREAM_ERROR",
-        detalhe: body
-      });
-    }
-
-    return res.json(body);
+    return res.json(result.body);
   }
 );
 
