@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api.js";
 
-const KPI_CHAVES = [
+/** Seis indicadores principais + media e razao em segundo bloco (grid 4+4) */
+const KPI_PRINCIPAL = [
   { key: "a1", label: "Familias em acompanhamento PAIF (A.1)" },
   { key: "c1", label: "Atendimentos individualizados (C.1)" },
-  { key: "c2c3", label: "Encaminh. CadUnico inclusao + atualiz. (C.2+C.3)", derivado: true },
-  { key: "c6", label: "Visitas domiciliares (C.6)" }
+  { key: "c2c3", label: "Encaminhamentos ao CadUnico (C.2+C.3)", derivado: true },
+  { key: "c6", label: "Visitas domiciliares (C.6)" },
+  { key: "b2", label: "Familias no Bolsa Familia (B.2)" },
+  { key: "d1", label: "Familias em grupos PAIF (D.1)" }
 ];
 
 function formatNum(n) {
@@ -43,7 +46,7 @@ export function RmaPanelPage({ usuario }) {
           setMes(String(p.mes));
         }
       } catch {
-        if (!cancel) setErro("Nao foi possivel carregar periodos RMA.");
+        if (!cancel) setErro("Nao foi possivel carregar os periodos.");
       }
     }
     load();
@@ -81,7 +84,7 @@ export function RmaPanelPage({ usuario }) {
         if (!cancel) setOverview(data);
       } catch {
         if (!cancel) {
-          setErro("Falha ao carregar dados do periodo.");
+          setErro("Falha ao carregar os dados.");
           setOverview(null);
         }
       } finally {
@@ -128,7 +131,6 @@ export function RmaPanelPage({ usuario }) {
       .sort((a, b) => a - b);
   }, [periodos, ano]);
 
-
   async function enviarArquivo(e) {
     e.preventDefault();
     if (!arquivo) return;
@@ -163,28 +165,51 @@ export function RmaPanelPage({ usuario }) {
   const rotulo = (codigo) =>
     indicadores.find((i) => i.codigo === codigo)?.rotulo || codigo;
 
+  const tituloPeriodo =
+    overview?.agregacao === "ano"
+      ? `Ano ${overview.periodo?.ano} (todos os meses)`
+      : overview
+        ? `${String(overview.periodo?.mes).padStart(2, "0")}/${overview.periodo?.ano}`
+        : "";
+
+  const subtituloResumo = overview?.filtroIdCras
+    ? "Unidade selecionada"
+    : "Totais do municipio";
+
   return (
     <div className="dashboard-shell">
-      <aside className="sidebar">
-        <h3>RMA</h3>
-        <p className="muted">
-          Registro mensal por CRAS (id_cras). Totais municipais no periodo selecionado.
+      <aside className="sidebar rma-sidebar">
+        <h3>RMA CRAS</h3>
+        <p className="muted rma-sidebar-lead">
+          Registro mensal de atendimento — equipamentos CRAS. Em breve: RMA CREAS.
         </p>
+        {overview ? (
+          <div className="rma-sidebar-kpis">
+            <div className="rma-sidebar-kpi">
+              <span>Unidades no recorte</span>
+              <strong>{formatNum(overview.quantidadeCras)}</strong>
+            </div>
+            <div className="rma-sidebar-kpi">
+              <span>Atendimentos individualizados (C.1)</span>
+              <strong>{formatNum(tot.c1)}</strong>
+            </div>
+          </div>
+        ) : (
+          <p className="muted rma-sidebar-hint">Selecione ano e mes para ver o resumo.</p>
+        )}
       </aside>
 
       <div className="dashboard-grid">
         <section className="card">
-          <h2>Painel RMA</h2>
-          <p className="muted">
-            Usuario: <strong>{usuario?.nome}</strong> ({usuario?.role})
-          </p>
+          <h2>RMA CRAS</h2>
           {mensagem ? <p className="success-text">{mensagem}</p> : null}
           {erro ? <p className="error-text">{erro}</p> : null}
         </section>
 
         {podeEnviar ? (
           <section className="card">
-            <h3>Importar CSV (separador ;)</h3>
+            <h3>Importar dados</h3>
+            <p className="muted small-margin-b">Arquivo CSV (separador ;)</p>
             <form className="form" onSubmit={enviarArquivo}>
               <label>
                 Arquivo
@@ -195,15 +220,15 @@ export function RmaPanelPage({ usuario }) {
                 />
               </label>
               <button type="submit" disabled={enviando || !arquivo}>
-                {enviando ? "Enviando..." : "Enviar e importar"}
+                {enviando ? "Enviando..." : "Importar"}
               </button>
             </form>
           </section>
         ) : null}
 
         <section className="card">
-          <h3>Periodo</h3>
-          <div className="metrics-grid">
+          <h3>Filtros</h3>
+          <div className="metrics-grid rma-filters-grid">
             <div className="metric-item">
               <span>Ano</span>
               <select
@@ -232,7 +257,7 @@ export function RmaPanelPage({ usuario }) {
                 disabled={!ano}
               >
                 <option value="">Selecione</option>
-                {ano ? <option value="TODOS">Todos (somar o ano)</option> : null}
+                {ano ? <option value="TODOS">Ano completo</option> : null}
                 {mesesParaAno.map((m) => (
                   <option key={m} value={m}>
                     {String(m).padStart(2, "0")}
@@ -241,18 +266,18 @@ export function RmaPanelPage({ usuario }) {
               </select>
             </div>
             <div className="metric-item">
-              <span>CRAS</span>
+              <span>Unidade</span>
               <select
                 className="enhanced-select"
                 value={idCrasFiltro}
                 onChange={(e) => setIdCrasFiltro(e.target.value)}
                 disabled={!ano}
               >
-                <option value="">Todos os CRAS</option>
+                <option value="">Todas as unidades</option>
                 {unidadesAno.map((u) => (
                   <option key={u.idCras} value={u.idCras}>
                     {u.ordem != null ? `${u.ordem}. ` : ""}
-                    {u.nomeUnidade || u.idCras}
+                    {u.nomeUnidade || `Unidade ${u.idCras}`}
                   </option>
                 ))}
               </select>
@@ -260,7 +285,7 @@ export function RmaPanelPage({ usuario }) {
           </div>
           {periodos.length === 0 ? (
             <p className="muted">
-              Nenhum dado RMA importado. {podeEnviar ? "Envie um CSV para comecar." : "Aguarde a importacao pela equipe."}
+              Nenhum dado importado. {podeEnviar ? "Importe um CSV para comecar." : null}
             </p>
           ) : null}
         </section>
@@ -278,25 +303,10 @@ export function RmaPanelPage({ usuario }) {
             ) : null}
             <section className="card">
               <h3>
-                {overview.filtroIdCras ? "CRAS selecionado" : "Municipio"} —{" "}
-                {overview.agregacao === "ano"
-                  ? `ano ${overview.periodo?.ano} (todos os meses)`
-                  : `${String(overview.periodo?.mes).padStart(2, "0")}/${overview.periodo?.ano}`}
+                {subtituloResumo} — {tituloPeriodo}
               </h3>
-              <p className="muted">
-                {overview.agregacao === "ano"
-                  ? "CRAS no recorte: "
-                  : "CRAS com registro no mes: "}
-                <strong>{overview.quantidadeCras ?? 0}</strong>
-                {overview.filtroIdCras ? (
-                  <>
-                    {" "}
-                    · id_cras <strong>{overview.filtroIdCras}</strong>
-                  </>
-                ) : null}
-              </p>
-              <div className="metrics-grid">
-                {KPI_CHAVES.map((k) => {
+              <div className="metrics-grid rma-kpi-grid">
+                {KPI_PRINCIPAL.map((k) => {
                   let valor;
                   if (k.derivado && k.key === "c2c3") {
                     valor = (tot.c2 ?? 0) + (tot.c3 ?? 0);
@@ -304,21 +314,27 @@ export function RmaPanelPage({ usuario }) {
                     valor = tot[k.key];
                   }
                   return (
-                    <div key={k.key} className="metric-item" title={rotulo(k.key === "c2c3" ? "c2" : k.key)}>
+                    <div
+                      key={k.key}
+                      className="metric-item"
+                      title={rotulo(k.key === "c2c3" ? "c2" : k.key)}
+                    >
                       <span>{k.label}</span>
                       <strong>{formatNum(valor)}</strong>
                     </div>
                   );
                 })}
+              </div>
+              <div className="metrics-grid rma-kpi-grid rma-kpi-secondary">
                 <div className="metric-item">
                   <span>
-                    Media C.1 por CRAS
-                    {overview.agregacao === "ano" ? " (visao anual)" : " (no mes)"}
+                    Media de C.1 por unidade
+                    {overview.agregacao === "ano" ? " (ano)" : ""}
                   </span>
                   <strong>{formatNum(deriv.mediaAtendimentosIndividualizadosPorCras)}</strong>
                 </div>
                 <div className="metric-item">
-                  <span>Razao (C.2+C.3) / A.1</span>
+                  <span>Razao encaminhamentos (C.2+C.3) / acompanhamento (A.1)</span>
                   <strong>
                     {deriv.razaoEncaminhamentosCadUnicoSobreAcompanhamentoPAIF != null
                       ? deriv.razaoEncaminhamentosCadUnicoSobreAcompanhamentoPAIF.toFixed(3)
@@ -329,13 +345,12 @@ export function RmaPanelPage({ usuario }) {
             </section>
 
             <section className="card">
-              <h3>Por CRAS (id_cras)</h3>
-              <div className="report-table-wrap">
-                <table className="report-preview-table">
+              <h3>Por unidade</h3>
+              <div className="report-table-wrap rma-table-wrap">
+                <table className="report-preview-table rma-por-unidade-table">
                   <thead>
                     <tr>
-                      <th>id_cras</th>
-                      <th>Unidade</th>
+                      <th className="rma-col-unidade">Unidade</th>
                       <th>A.1</th>
                       <th>C.1</th>
                       <th>C.2+C.3</th>
@@ -345,8 +360,7 @@ export function RmaPanelPage({ usuario }) {
                   <tbody>
                     {(overview.porCras || []).map((row) => (
                       <tr key={row.idCras}>
-                        <td>{row.idCras}</td>
-                        <td>{row.nomeUnidade || "—"}</td>
+                        <td className="rma-col-unidade">{row.nomeUnidade || "—"}</td>
                         <td>{formatNum(row.a1)}</td>
                         <td>{formatNum(row.c1)}</td>
                         <td>{formatNum((row.c2 ?? 0) + (row.c3 ?? 0))}</td>
@@ -359,22 +373,20 @@ export function RmaPanelPage({ usuario }) {
             </section>
 
             <section className="card">
-              <h3>Todos os indicadores (total municipal)</h3>
-              <div className="report-table-wrap">
-                <table className="report-preview-table">
+              <h3>Indicadores — total municipal</h3>
+              <div className="report-table-wrap rma-table-wrap">
+                <table className="report-preview-table rma-indicadores-table">
                   <thead>
                     <tr>
-                      <th>Codigo</th>
-                      <th>Descricao</th>
+                      <th>Indicador</th>
                       <th>Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {indicadores.map((ind) => (
                       <tr key={ind.codigo}>
-                        <td>{ind.codigo}</td>
-                        <td>{ind.rotulo}</td>
-                        <td>{formatNum(tot[ind.codigo])}</td>
+                        <td className="rma-col-desc">{ind.rotulo}</td>
+                        <td className="rma-col-num">{formatNum(tot[ind.codigo])}</td>
                       </tr>
                     ))}
                   </tbody>

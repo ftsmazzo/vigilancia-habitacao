@@ -174,11 +174,21 @@ function decodeCsvBuffer(buffer) {
   }
   const utf8 = buf.toString("utf8");
   const win = iconv.decode(buf, "win1252");
-  const countBad = (s) => (s.match(/\uFFFD/g) || []).length;
-  const countPt = (s) => (s.match(/[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]/g) || []).length;
-  if (countBad(utf8) > 0 && countPt(win) >= countPt(utf8)) return win;
-  if (countPt(win) > countPt(utf8) + 2) return win;
-  return utf8;
+  const iso = iconv.decode(buf, "iso8859-1");
+  const rank = (s) => {
+    const pt = (s.match(/[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]/g) || []).length;
+    const bad = (s.match(/\uFFFD/g) || []).length;
+    const diamond = (s.match(/\uFFFD/g) || []).length;
+    const mojibake = (s.match(/Ã.|Âª|Âº/g) || []).length;
+    return pt * 20 - bad * 80 - diamond * 40 - mojibake * 15;
+  };
+  const candidates = [
+    { text: utf8, r: rank(utf8) },
+    { text: win, r: rank(win) },
+    { text: iso, r: rank(iso) }
+  ];
+  candidates.sort((a, b) => b.r - a.r);
+  return candidates[0].text;
 }
 
 function metricZeros() {

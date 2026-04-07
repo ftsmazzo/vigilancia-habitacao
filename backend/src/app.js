@@ -22,6 +22,15 @@ app.use(cors({ origin: corsOrigin === "*" ? true : corsOrigin }));
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("dev"));
 
+app.use((req, res, next) => {
+  const origJson = res.json.bind(res);
+  res.json = (body) => {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    return origJson(body);
+  };
+  next();
+});
+
 app.get("/", (_req, res) => {
   return res.json({
     ok: true,

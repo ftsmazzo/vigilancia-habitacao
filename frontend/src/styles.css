@@ -359,6 +359,89 @@ body {
   background: #0b1220;
 }
 
+/* RMA CRAS — menos rolagem horizontal, nomes quebram na primeira coluna */
+.rma-table-wrap {
+  overflow-x: visible;
+}
+
+.rma-por-unidade-table .rma-col-unidade {
+  white-space: normal;
+  word-break: break-word;
+  hyphens: auto;
+  max-width: min(100%, 36rem);
+  min-width: 12rem;
+  line-height: 1.35;
+}
+
+.rma-por-unidade-table th:not(.rma-col-unidade),
+.rma-por-unidade-table td:not(.rma-col-unidade) {
+  white-space: nowrap;
+}
+
+.rma-indicadores-table .rma-col-desc {
+  white-space: normal;
+  word-break: break-word;
+  max-width: min(100%, 42rem);
+}
+
+.rma-indicadores-table .rma-col-num {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.metrics-grid.rma-kpi-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metrics-grid.rma-kpi-secondary {
+  margin-top: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metrics-grid.rma-filters-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rma-sidebar-lead {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  margin: 0 0 12px;
+}
+
+.rma-sidebar-hint {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.rma-sidebar-kpis {
+  display: grid;
+  gap: 10px;
+}
+
+.rma-sidebar-kpi {
+  background: #0b1220;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.rma-sidebar-kpi span {
+  color: #93c5fd;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.rma-sidebar-kpi strong {
+  font-size: 18px;
+  color: #f1f5f9;
+}
+
+.small-margin-b {
+  margin-bottom: 8px;
+}
+
 .report-preview-table {
   width: 100%;
   border-collapse: collapse;
@@ -525,6 +608,14 @@ body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .metrics-grid.rma-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metrics-grid.rma-filters-grid {
+    grid-template-columns: 1fr;
+  }
+
 }
 
 @media (max-width: 720px) {
@@ -543,6 +634,10 @@ body {
   }
 
   .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-grid.rma-kpi-grid {
     grid-template-columns: 1fr;
   }
 
