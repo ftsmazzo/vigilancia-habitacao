@@ -1,6 +1,14 @@
 /**
- * Busca dados municipais na API publica do IBGE (localidades + divisoes).
- * Documentacao: https://servicodados.ibge.gov.br/api/docs/localidades
+ * Integracao com a API publica de Localidades do IBGE.
+ *
+ * Indice geral das APIs: https://servicodados.ibge.gov.br/api/docs
+ *
+ * Estrategia de coleta (eficiente para o assistente):
+ * 1) Localidades v1 — lista por UF, municipio por id, distritos (ja usamos).
+ * 2) Sincronizacao `fetchIbgeContextoMunicipio` — monta texto + JSON para o prompt.
+ * 3) Dados estatisticos (populacao, PIB, etc.) — API de agregados/SIDRA (tabelas especificas);
+ *    exige escolher tabela/periodo; nao misturar com localidades na mesma URL.
+ * 4) Malhas geograficas — outro servico, para mapas; nao necessario ao texto do assistente.
  */
 
 const IBGE_BASE = "https://servicodados.ibge.gov.br/api/v1/localidades";
@@ -21,6 +29,25 @@ async function fetchJson(url) {
     throw new Error(`IBGE retornou HTTP ${res.status} (${url})`);
   }
   return res.json();
+}
+
+/**
+ * Lista municipios de uma UF (para selects / validacao de codigo).
+ * GET .../estados/{UF}/municipios
+ */
+export async function fetchMunicipiosPorUf(uf) {
+  const sigla = String(uf ?? "")
+    .trim()
+    .toUpperCase()
+    .slice(0, 2);
+  if (!/^[A-Z]{2}$/.test(sigla)) {
+    throw new Error("UF invalida (use 2 letras, ex.: SP)");
+  }
+  const data = await fetchJson(`${IBGE_BASE}/estados/${sigla}/municipios`);
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((m) => ({ id: m.id, nome: m.nome }))
+    .sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
 }
 
 /**

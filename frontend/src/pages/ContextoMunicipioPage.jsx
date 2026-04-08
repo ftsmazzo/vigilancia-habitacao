@@ -1,6 +1,37 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api.js";
 
+/** UFs brasileiras (API localidades: /estados/{UF}/municipios). */
+const UFS_BR = [
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO"
+];
+
 const emptyDados = {
   qtdCras: "",
   qtdCreas: "",
@@ -71,6 +102,9 @@ export function ContextoMunicipioPage() {
   const [ibgeCacheEm, setIbgeCacheEm] = useState(null);
   const [municipioIbgeEnv, setMunicipioIbgeEnv] = useState(null);
   const [previewIbgeContexto, setPreviewIbgeContexto] = useState("");
+  const [ufSelecionada, setUfSelecionada] = useState("");
+  const [municipiosLista, setMunicipiosLista] = useState([]);
+  const [carregandoMun, setCarregandoMun] = useState(false);
 
   useEffect(() => {
     let cancel = false;
@@ -85,6 +119,7 @@ export function ContextoMunicipioPage() {
           setCodigoIbge(p.codigoIbge || "");
           setNome(p.nome || "");
           setUf(p.uf || "");
+          if (p.uf) setUfSelecionada(p.uf);
           setTextoMunicipio(p.textoMunicipio || "");
           setCampos(flattenDadosFromJson(p.dadosJson));
           setIbgeCacheEm(p.ibgeCacheEm || null);
@@ -102,6 +137,42 @@ export function ContextoMunicipioPage() {
       cancel = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (ufSelecionada.length !== 2) {
+      setMunicipiosLista([]);
+      return;
+    }
+    let cancel = false;
+    async function loadMun() {
+      setCarregandoMun(true);
+      try {
+        const { data } = await api.get(
+          `/municipio-perfil/ibge/municipios/${ufSelecionada}`
+        );
+        if (!cancel) setMunicipiosLista(Array.isArray(data.municipios) ? data.municipios : []);
+      } catch {
+        if (!cancel) setMunicipiosLista([]);
+      } finally {
+        if (!cancel) setCarregandoMun(false);
+      }
+    }
+    loadMun();
+    return () => {
+      cancel = true;
+    };
+  }, [ufSelecionada]);
+
+  function aoEscolherMunicipioLista(e) {
+    const id = e.target.value;
+    if (!id) return;
+    const m = municipiosLista.find((x) => String(x.id) === String(id));
+    if (m) {
+      setCodigoIbge(String(m.id));
+      setNome(m.nome);
+      setUf(ufSelecionada);
+    }
+  }
 
   async function salvar(e) {
     e.preventDefault();
@@ -174,6 +245,18 @@ export function ContextoMunicipioPage() {
           outro registro e defina <code className="inline-code">MUNICIPIO_IBGE_CODIGO</code> no
           backend (ou mantenha um unico perfil).
         </p>
+        <p className="muted small-margin-b" style={{ fontSize: "0.9rem" }}>
+          Divisoes e nomes oficiais seguem a{" "}
+          <a
+            href="https://servicodados.ibge.gov.br/api/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            API de servico de dados do IBGE
+          </a>{" "}
+          (indice em servicodados.ibge.gov.br/api/docs). Populacao, PIB etc. vêm de tabelas de
+          agregados/SIDRA — use o formulario abaixo quando precisar informar no assistente.
+        </p>
         {municipioIbgeEnv ? (
           <p className="muted small-margin-b" style={{ fontSize: "0.9rem" }}>
             Servidor usa <code className="inline-code">MUNICIPIO_IBGE_CODIGO={municipioIbgeEnv}</code>{" "}
@@ -191,6 +274,51 @@ export function ContextoMunicipioPage() {
       <section className="card">
         <form className="form chat-rag-form" onSubmit={salvar}>
           <h3>Identificacao</h3>
+          <p className="muted small-margin-b" style={{ fontSize: "0.9rem" }}>
+            Escolha UF e municipio na lista (mesma fonte do IBGE) ou preencha o codigo manualmente
+            abaixo.
+          </p>
+          <div className="metrics-grid rma-filters-grid">
+            <label className="metric-item">
+              <span>UF (lista IBGE)</span>
+              <select
+                className="enhanced-select"
+                value={ufSelecionada}
+                onChange={(e) => setUfSelecionada(e.target.value)}
+              >
+                <option value="">Selecione</option>
+                {UFS_BR.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="metric-item">
+              <span>Municipio</span>
+              <select
+                className="enhanced-select"
+                value={
+                  codigoIbge &&
+                  municipiosLista.some((m) => String(m.id) === String(codigoIbge))
+                    ? String(codigoIbge)
+                    : ""
+                }
+                onChange={aoEscolherMunicipioLista}
+                disabled={ufSelecionada.length !== 2 || carregandoMun}
+              >
+                <option value="">
+                  {carregandoMun ? "Carregando..." : ufSelecionada ? "Selecione o municipio" : "—"}
+                </option>
+                {municipiosLista.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="metrics-grid rma-filters-grid">
             <label className="metric-item">
               <span>Codigo IBGE (7 digitos)</span>

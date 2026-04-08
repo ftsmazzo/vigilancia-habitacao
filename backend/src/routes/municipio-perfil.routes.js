@@ -5,9 +5,31 @@ import {
   getMunicipioPerfilAtivo,
   formatMunicipioPerfilForPrompt
 } from "../services/municipioPerfil.service.js";
-import { fetchIbgeContextoMunicipio } from "../utils/ibgeMunicipio.js";
+import {
+  fetchIbgeContextoMunicipio,
+  fetchMunicipiosPorUf
+} from "../utils/ibgeMunicipio.js";
 
 const router = Router();
+
+/** Lista municipios da UF via API IBGE (para UI de selecao). */
+router.get(
+  "/ibge/municipios/:uf",
+  requireAuth,
+  requireRole("MASTER", "ADMIN"),
+  async (req, res) => {
+    try {
+      const municipios = await fetchMunicipiosPorUf(req.params.uf);
+      return res.json({ municipios });
+    } catch (e) {
+      return res.status(400).json({
+        error: true,
+        message: e.message || "Falha ao listar municipios",
+        code: "IBGE_LISTA_UF"
+      });
+    }
+  }
+);
 
 function parseDadosJson(input) {
   if (input == null) return {};
