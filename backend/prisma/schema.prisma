@@ -300,3 +300,21 @@ model RmaPopRegistroMensal {
   @@index([mesReferencia])
   @@index([idUnidade])
 }
+
+/// Perfil territorial e institucional do municipio atendido pelo sistema (contexto fixo para o assistente).
+/// Replicar em outro municipio: novo registro + variavel MUNICIPIO_IBGE_CODIGO apontando para o codigoIbge.
+model MunicipioPerfil {
+  id              String    @id @default(uuid())
+  codigoIbge      String    @unique @db.VarChar(7)
+  nome            String
+  uf              String    @db.VarChar(2)
+  /// Campos flexiveis: qtdCras, qtdCreas, qtdCentroPop, populacao, redeServicos, cadunicoResumo, etc.
+  dadosJson       Json      @default("{}")
+  /// Narrativa livre para o LLM (territorio, pactuacoes, observacoes locais)
+  textoMunicipio  String?   @db.Text
+  /// Cache da API de localidades municipais IBGE
+  ibgeCacheJson   Json?
+  ibgeCacheEm     DateTime?
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
+}

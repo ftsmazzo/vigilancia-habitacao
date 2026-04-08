@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../services/api.js";
 import { readAndClearAssistenteContextoRma } from "../utils/assistenteContextStorage.js";
 
@@ -49,7 +50,13 @@ export function ChatAssistentePage({ usuario }) {
         const { data } = await api.get("/assistente/status");
         if (!cancel) setStatus(data);
       } catch {
-        if (!cancel) setStatus({ llmConfigured: false, ragConfigured: false });
+        if (!cancel) {
+          setStatus({
+            llmConfigured: false,
+            ragConfigured: false,
+            municipioPerfilConfigured: false
+          });
+        }
       }
     }
     loadStatus();
@@ -124,6 +131,9 @@ export function ChatAssistentePage({ usuario }) {
   const llmOk = status?.llmConfigured === true;
   const ragOk = status?.ragConfigured === true;
   const linhaRecorte = describeRecorteRma(recorteRma);
+  const mun = status?.municipioResumo;
+  const perfilMunicipioOk = status?.municipioPerfilConfigured === true;
+  const podeEditarMunicipio = ["MASTER", "ADMIN"].includes(usuario?.role);
 
   return (
     <div className="chat-rag-shell">
@@ -149,6 +159,23 @@ export function ChatAssistentePage({ usuario }) {
           <p className="error-text">
             Configure <code className="inline-code">RAG_API_KEY</code> no backend para consultar a
             base normativa em toda resposta.
+          </p>
+        ) : null}
+        {llmOk && !perfilMunicipioOk ? (
+          <p className="error-text" style={{ fontSize: "0.92rem" }}>
+            Ainda nao ha perfil municipal cadastrado — o assistente tera menos contexto territorial.{" "}
+            {podeEditarMunicipio ? (
+              <>
+                <Link to="/contexto-municipio">Cadastre o contexto do municipio</Link>.
+              </>
+            ) : (
+              "Peça a um administrador para cadastrar em Contexto municipio."
+            )}
+          </p>
+        ) : mun ? (
+          <p className="muted small-margin-b" style={{ fontSize: "0.92rem" }}>
+            <strong>Municipio em foco:</strong> {mun.nome} / {mun.uf} (IBGE {mun.codigoIbge}) — dados
+            do perfil entram automaticamente em cada resposta.
           </p>
         ) : null}
         {erro && !mensagens.length ? <p className="error-text">{erro}</p> : null}

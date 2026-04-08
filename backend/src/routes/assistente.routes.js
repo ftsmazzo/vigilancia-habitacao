@@ -6,6 +6,11 @@ import {
   ragKnowledgeBaseId
 } from "../utils/ragClient.js";
 import { resolveOpenAiModel } from "../utils/openaiModel.js";
+import {
+  getMunicipioPerfilAtivo,
+  formatMunicipioPerfilForPrompt,
+  resumoMunicipioParaRag
+} from "../services/municipioPerfil.service.js";
 
 const router = Router();
 
@@ -20,19 +25,25 @@ Base normativa e tecnica (sempre que houver trechos recuperados abaixo):
 A base indexada contem, entre outros: LOAS (Lei 8.742/1993 e alteracoes); NOB/SUAS (normas operacionais basicas, incl. marcos de 2005 e 2012); NOB-RH/SUAS (gestao de recursos humanos); Tipificacao Nacional dos Servicos Socioassistenciais (Resolucao CNAS 109/2009); PNAS 2004 (Politica Nacional de Assistencia Social).
 Esses trechos sao a fundacao teorica e normativa das suas respostas: alinhe conceitos, definicoes de servicos, encargos e marcos legais a eles quando aplicavel. Nao substitua o rigor normativo por suposicoes.
 
+Tom e profundidade:
+- Seja preciso e contextual: quando houver "Perfil territorial e institucional", adapte exemplos, escala e linguagem ao tamanho da rede e ao territorio descrito (evite respostas genericas de "qualquer municipio").
+- Articule norma, dado do RMA e realidade local quando os tres blocos estiverem presentes.
+- E estruturado, mas pode usar transicoes e nuances adequadas a relatorio tecnico — sem ser frio demais nem prolixo.
+
 Regras:
-1) "Contexto operacional" traz dados factuais (painel RMA, notas). Numeros, periodos e unidades vêm daí — trate como prioridade para a parte empirica.
-2) Os trechos da base normativa (RAG) fundamentam a parte conceitual, juridica e de diretrizes. Integre-os com os dados operacionais (ex.: relacionar indicadores a tipificacao de servicos ou aos eixos da politica quando couber).
-3) Se os trechos recuperados forem insuficientes ou a busca falhar, diga isso com clareza e nao simule citacao de norma.
-4) Em caso de conflito aparente entre dado operacional pontual e norma geral, explique a ressalva (escopo do indicador, nivel de governo, vigencia) sem descartar o dado sem motivo.
-5) Responda em portugues, tom profissional e objetivo.
-6) Nao invente cifras nem artigos de lei: use apenas o contexto operacional e os trechos fornecidos.`;
+1) "Perfil territorial" descreve o municipio em foco (equipamentos, CadUnico resumo, IBGE, notas). Use como referencia de territorio e escala; nao contradiga numeros do RMA sem explicar (o RMA e a medicao operacional).
+2) "Contexto operacional" traz dados factuais (painel RMA, notas). Numeros, periodos e unidades vêm daí — prioridade para a parte empirica.
+3) Os trechos da base normativa (RAG) fundamentam a parte conceitual, juridica e de diretrizes. Integre-os com dados e perfil local quando couber.
+4) Se os trechos recuperados forem insuficientes ou a busca falhar, diga isso com clareza e nao simule citacao de norma.
+5) Em caso de conflito aparente entre dado operacional pontual e norma geral, explique a ressalva (escopo do indicador, nivel de governo, vigencia) sem descartar o dado sem motivo.
+6) Responda em portugues, tom profissional.
+7) Nao invente cifras nem artigos de lei: use apenas o perfil municipal, o contexto operacional e os trechos fornecidos.`;
 
 const RAG_QUERY_SYSTEM = `Voce gera exclusivamente uma consulta em portugues para busca semantica em uma base documental do SUAS.
 
 A base contem documentos como: LOAS (Lei 8.742/1993); NOB/SUAS (2005 e 2012); NOB-RH/SUAS; Tipificacao Nacional dos Servicos Socioassistenciais (Resolucao CNAS 109/2009); PNAS 2004.
 
-Tarefa: combinar o pedido do usuario com o resumo do contexto operacional (RMA, periodo, unidade, notas) para formular UMA pergunta ou conjunto de termos que maximizem a recuperacao de trechos juridicos, conceituais ou de diretrizes pertinentes — inclusive servicos tipicos (CRAS, CREAS, Centro POP, SCFV, PAIF, PAEFI etc.) quando aparecerem no pedido ou no contexto.
+Tarefa: combinar o pedido do usuario com o resumo do contexto (municipio em foco, RMA, periodo, unidade, notas) para formular UMA pergunta ou conjunto de termos que maximizem a recuperacao de trechos juridicos, conceituais ou de diretrizes pertinentes — inclusive servicos tipicos (CRAS, CREAS, Centro POP, SCFV, PAIF, PAEFI etc.) quando aparecerem no pedido ou no contexto.
 
 Regras de saida:
 - Responda somente com o texto da consulta, sem aspas, sem markdown, sem numeracao.
@@ -86,11 +97,13 @@ function formatContextoPainel(contextoPainel) {
 }
 
 /** Resumo curto para o modelo que formula a consulta ao RAG (sem repetir tabelas). */
-function buildHintForRagQuery(contextoPainel) {
+function buildHintForRagQuery(contextoPainel, perfilMunicipio) {
+  const linhaMun = perfilMunicipio ? resumoMunicipioParaRag(perfilMunicipio) : "";
   if (!contextoPainel || typeof contextoPainel !== "object") {
-    return "(Sem resumo de contexto operacional.)";
+    return linhaMun || "(Sem resumo de contexto operacional.)";
   }
   const partes = [];
+  if (linhaMun) partes.push(linhaMun);
   const notas = contextoPainel.notasLivres;
   if (notas != null && String(notas).trim()) {
     partes.push(`Notas: ${String(notas).trim().slice(0, 500)}`);
@@ -117,8 +130,8 @@ function buildHintForRagQuery(contextoPainel) {
   return partes.length ? partes.join(" ") : "(Sem resumo de contexto operacional.)";
 }
 
-async function gerarConsultaRag({ message, contextoPainel }) {
-  const hint = buildHintForRagQuery(contextoPainel);
+async function gerarConsultaRag({ message, contextoPainel, perfilMunicipio }) {
+  const hint = buildHintForRagQuery(contextoPainel, perfilMunicipio);
   try {
     const { text } = await openaiChatCompletions(
       [
@@ -172,7 +185,7 @@ async function openaiChatCompletions(messages, opts = {}) {
   }
 
   const model = resolveOpenAiModel();
-  const temperature = opts.temperature ?? 0.35;
+  const temperature = opts.temperature ?? 0.4;
   const max_tokens = opts.max_tokens ?? 4096;
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -242,6 +255,8 @@ router.post(
       Math.max(1, Number(req.body?.ragTopK) || 5)
     );
 
+    const perfilMunicipio = await getMunicipioPerfilAtivo();
+
     let ragBodyParaCliente = null;
     let ragErro = null;
     let ragQueryUsada = null;
@@ -249,7 +264,11 @@ router.post(
     const ragDisponivel = Boolean(process.env.RAG_API_KEY?.trim());
     if (ragDisponivel) {
       try {
-        ragQueryUsada = await gerarConsultaRag({ message, contextoPainel });
+        ragQueryUsada = await gerarConsultaRag({
+          message,
+          contextoPainel,
+          perfilMunicipio
+        });
       } catch (e) {
         ragQueryUsada = message.slice(0, 8000);
         console.warn("gerarConsultaRag falhou, usando pedido bruto:", e?.message);
@@ -278,7 +297,12 @@ router.post(
       blocoRag = `(Base normativa indisponivel nesta rodada: ${ragErro || "sem dados"}. Responda com ressalva; nao simule citacoes de norma.)`;
     }
 
-    const userContent = `### Contexto operacional (dados do painel / recorte — prioridade factual)
+    const blocoPerfil = formatMunicipioPerfilForPrompt(perfilMunicipio);
+
+    const userContent = `### Perfil territorial e institucional (municipio em foco — referencia de territorio e escala)
+${blocoPerfil}
+
+### Contexto operacional (dados do painel / recorte — prioridade factual)
 ${formatContextoPainel(contextoPainel)}
 
 ### Base normativa e tecnica (trechos recuperados do acervo indexado — fundacao obrigatoria quando houver conteudo)
@@ -334,12 +358,17 @@ router.get(
   "/status",
   requireAuth,
   requireRole("MASTER", "ADMIN", "HABITACAO", "VIGILANCIA"),
-  (_req, res) => {
+  async (_req, res) => {
     const resolved = resolveOpenAiModel();
+    const perfil = await getMunicipioPerfilAtivo();
     return res.json({
       ok: true,
       ragConfigured: Boolean(process.env.RAG_API_KEY?.trim()),
       llmConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+      municipioPerfilConfigured: Boolean(perfil),
+      municipioResumo: perfil
+        ? { nome: perfil.nome, uf: perfil.uf, codigoIbge: perfil.codigoIbge }
+        : null,
       knowledgeBaseId: ragKnowledgeBaseId(),
       baseUrl: ragBaseUrl(),
       openaiModel: resolved,

@@ -4,6 +4,7 @@ import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { VigilanciaDashboardPage } from "./pages/VigilanciaDashboardPage.jsx";
 import { RmaPanelPage } from "./pages/RmaPanelPage.jsx";
 import { ChatAssistentePage } from "./pages/ChatAssistentePage.jsx";
+import { ContextoMunicipioPage } from "./pages/ContextoMunicipioPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { api } from "./services/api.js";
 
@@ -53,6 +54,7 @@ export default function App() {
 
   const isVigilancia = usuario?.role === "VIGILANCIA";
   const podePainelRma = ["MASTER", "ADMIN", "VIGILANCIA"].includes(usuario?.role);
+  const podeContextoMunicipio = ["MASTER", "ADMIN"].includes(usuario?.role);
 
   return (
     <div className="app-shell">
@@ -67,6 +69,9 @@ export default function App() {
           {usuario && isVigilancia ? <Link to="/vigilancia">Vigilancia</Link> : null}
           {usuario && podePainelRma ? <Link to="/rma">RMA</Link> : null}
           {usuario ? <Link to="/assistente">Assistente</Link> : null}
+          {usuario && podeContextoMunicipio ? (
+            <Link to="/contexto-municipio">Contexto municipio</Link>
+          ) : null}
           {usuario ? (
             <button type="button" className="ghost-btn" onClick={sair}>
               Sair
@@ -130,6 +135,18 @@ export default function App() {
             element={
               usuario ? (
                 <ChatAssistentePage usuario={usuario} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/contexto-municipio"
+            element={
+              usuario && podeContextoMunicipio ? (
+                <ContextoMunicipioPage />
+              ) : usuario ? (
+                <Navigate to="/assistente" replace />
               ) : (
                 <Navigate to="/login" replace />
               )
