@@ -5,7 +5,7 @@ import {
   getMunicipioPerfilAtivo,
   formatMunicipioPerfilForPrompt
 } from "../services/municipioPerfil.service.js";
-import { fetchIbgeMunicipioPorCodigo } from "../utils/ibgeMunicipio.js";
+import { fetchIbgeContextoMunicipio } from "../utils/ibgeMunicipio.js";
 
 const router = Router();
 
@@ -116,7 +116,8 @@ router.post(
     }
 
     try {
-      const ibge = await fetchIbgeMunicipioPorCodigo(codigo);
+      const ibgeCtx = await fetchIbgeContextoMunicipio(codigo);
+      const loc = ibgeCtx.localidade || {};
       const existente = await prisma.municipioPerfil.findUnique({
         where: { codigoIbge: codigo }
       });
@@ -125,25 +126,25 @@ router.post(
         const atualizado = await prisma.municipioPerfil.update({
           where: { codigoIbge: codigo },
           data: {
-            nome: ibge.nome || existente.nome,
-            uf: ibge.uf || existente.uf,
-            ibgeCacheJson: ibge,
+            nome: loc.nome || existente.nome,
+            uf: loc.uf || existente.uf,
+            ibgeCacheJson: ibgeCtx,
             ibgeCacheEm: agora
           }
         });
-        return res.json({ success: true, ibge, perfil: atualizado });
+        return res.json({ success: true, ibge: ibgeCtx, perfil: atualizado });
       }
       const criado = await prisma.municipioPerfil.create({
         data: {
           codigoIbge: codigo,
-          nome: ibge.nome || "Municipio",
-          uf: ibge.uf || "BR",
+          nome: loc.nome || "Municipio",
+          uf: loc.uf || "BR",
           dadosJson: {},
-          ibgeCacheJson: ibge,
+          ibgeCacheJson: ibgeCtx,
           ibgeCacheEm: agora
         }
       });
-      return res.json({ success: true, ibge, perfil: criado });
+      return res.json({ success: true, ibge: ibgeCtx, perfil: criado });
     } catch (e) {
       console.error("sincronizar-ibge:", e);
       return res.status(502).json({

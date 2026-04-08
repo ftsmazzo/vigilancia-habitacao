@@ -37,6 +37,21 @@ export function resumoMunicipioParaRag(perfil) {
       `Populacao referencia: ${d.populacao}${d.anoPopulacao ? ` (${d.anoPopulacao})` : ""}.`
     );
   }
+  const ibge = perfil.ibgeCacheJson;
+  if (ibge && typeof ibge === "object") {
+    const loc = ibge.localidade;
+    if (loc?.mesorregiao) {
+      partes.push(`Mesorregiao (IBGE): ${loc.mesorregiao}.`);
+    }
+    if (loc?.regiaoImediata?.nome) {
+      partes.push(`Regiao geografica imediata (IBGE): ${loc.regiaoImediata.nome}.`);
+    }
+    if (ibge.divisoesTerritoriais?.quantidadeDistritos != null) {
+      partes.push(
+        `Distritos administrativos (IBGE): ${ibge.divisoesTerritoriais.quantidadeDistritos}.`
+      );
+    }
+  }
   return partes.join(" ");
 }
 
@@ -57,9 +72,35 @@ export function formatMunicipioPerfilForPrompt(perfil) {
     `Identificacao: ${perfil.nome} / ${perfil.uf} — IBGE ${perfil.codigoIbge}.`
   );
 
+  if (perfil.ibgeCacheJson && typeof perfil.ibgeCacheJson === "object") {
+    const ibge = perfil.ibgeCacheJson;
+    if (ibge.textoContextoAssistente && String(ibge.textoContextoAssistente).trim()) {
+      blocos.push(
+        `### Contexto territorial (IBGE — obtido pela sincronizacao)\n${String(ibge.textoContextoAssistente).trim().slice(0, 6000)}`
+      );
+    }
+    if (ibge.versao === 2 && ibge.localidade) {
+      const resumoDiv = ibge.divisoesTerritoriais;
+      const extra = {
+        localidade: ibge.localidade,
+        quantidadeDistritos: resumoDiv?.quantidadeDistritos,
+        amostraDistritos: Array.isArray(resumoDiv?.distritos)
+          ? resumoDiv.distritos.slice(0, 25).map((x) => x.nome)
+          : undefined
+      };
+      blocos.push(
+        `Dados estruturados IBGE (complemento):\n${JSON.stringify(extra, null, 2).slice(0, 8000)}`
+      );
+    } else if (!ibge.textoContextoAssistente) {
+      blocos.push(
+        `Dados de referencia IBGE (cache legado):\n${JSON.stringify(ibge, null, 2).slice(0, 4000)}`
+      );
+    }
+  }
+
   if (perfil.textoMunicipio?.trim()) {
     blocos.push(
-      `Sintese territorial e institucional (priorize para contextualizar respostas):\n${perfil.textoMunicipio.trim().slice(0, 8000)}`
+      `Sintese territorial e institucional (cadastro local — priorize junto com o IBGE):\n${perfil.textoMunicipio.trim().slice(0, 8000)}`
     );
   }
 
@@ -68,12 +109,6 @@ export function formatMunicipioPerfilForPrompt(perfil) {
   if (Object.keys(dadosUteis).length > 0) {
     blocos.push(
       `Dados cadastrados (estruturados):\n${JSON.stringify(dadosUteis, null, 2).slice(0, 12000)}`
-    );
-  }
-
-  if (perfil.ibgeCacheJson && typeof perfil.ibgeCacheJson === "object") {
-    blocos.push(
-      `Dados de referencia IBGE (localidade):\n${JSON.stringify(perfil.ibgeCacheJson, null, 2).slice(0, 4000)}`
     );
   }
 

@@ -70,6 +70,7 @@ export function ContextoMunicipioPage() {
   const [campos, setCampos] = useState({ ...emptyDados });
   const [ibgeCacheEm, setIbgeCacheEm] = useState(null);
   const [municipioIbgeEnv, setMunicipioIbgeEnv] = useState(null);
+  const [previewIbgeContexto, setPreviewIbgeContexto] = useState("");
 
   useEffect(() => {
     let cancel = false;
@@ -87,6 +88,8 @@ export function ContextoMunicipioPage() {
           setTextoMunicipio(p.textoMunicipio || "");
           setCampos(flattenDadosFromJson(p.dadosJson));
           setIbgeCacheEm(p.ibgeCacheEm || null);
+          const tx = p.ibgeCacheJson?.textoContextoAssistente;
+          setPreviewIbgeContexto(tx && String(tx).trim() ? String(tx).trim() : "");
         }
       } catch (e) {
         if (!cancel) setErro(e?.response?.data?.message || "Falha ao carregar perfil.");
@@ -136,7 +139,16 @@ export function ContextoMunicipioPage() {
         setUf(data.perfil.uf || "");
         setIbgeCacheEm(data.perfil.ibgeCacheEm || null);
       }
-      setMensagem("Dados de localidade IBGE atualizados (nome, UF, regiao).");
+      const narrativa = data.ibge?.textoContextoAssistente;
+      if (narrativa && String(narrativa).trim()) {
+        setPreviewIbgeContexto(String(narrativa).trim());
+      }
+      const nDist = data.ibge?.divisoesTerritoriais?.quantidadeDistritos;
+      setMensagem(
+        `Sincronizacao IBGE concluida. O assistente passa a usar mesorregiao, regioes geograficas e ` +
+          (nDist != null ? `${nDist} distrito(s) administrativo(s)` : "divisoes territoriais") +
+          ` como contexto territorial.`
+      );
     } catch (err) {
       setErro(err?.response?.data?.message || "Falha ao sincronizar com IBGE.");
     } finally {
@@ -222,6 +234,29 @@ export function ContextoMunicipioPage() {
             <p className="muted" style={{ fontSize: "0.85rem" }}>
               Ultima sincronizacao IBGE: {new Date(ibgeCacheEm).toLocaleString("pt-BR")}
             </p>
+          ) : null}
+          {previewIbgeContexto ? (
+            <details className="assistente-ibge-preview" style={{ marginTop: 12 }}>
+              <summary style={{ cursor: "pointer", color: "#93c5fd" }}>
+                Ver texto territorial (IBGE) enviado ao assistente
+              </summary>
+              <pre
+                style={{
+                  marginTop: 10,
+                  padding: 12,
+                  borderRadius: 8,
+                  background: "#0f172a",
+                  border: "1px solid #334155",
+                  color: "#e2e8f0",
+                  fontSize: "0.88rem",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: 320,
+                  overflow: "auto"
+                }}
+              >
+                {previewIbgeContexto}
+              </pre>
+            </details>
           ) : null}
 
           <h3 className="small-margin-b" style={{ marginTop: 20 }}>
