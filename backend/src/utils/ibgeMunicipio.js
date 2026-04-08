@@ -5,11 +5,16 @@
  *
  * Estrategia de coleta (eficiente para o assistente):
  * 1) Localidades v1 — lista por UF, municipio por id, distritos (ja usamos).
- * 2) Sincronizacao `fetchIbgeContextoMunicipio` — monta texto + JSON para o prompt.
- * 3) Dados estatisticos (populacao, PIB, etc.) — API de agregados/SIDRA (tabelas especificas);
- *    exige escolher tabela/periodo; nao misturar com localidades na mesma URL.
+ * 2) Agregados SIDRA — populacao estimada (6579), PIB municipal (5938), Censo pop (9514);
+ *    ver `ibgeIndicadoresSidra.js` (mesma logica estatistica do portal Cidades@, via API).
+ * 3) Sincronizacao `fetchIbgeContextoMunicipio` — texto + JSON para o prompt.
  * 4) Malhas geograficas — outro servico, para mapas; nao necessario ao texto do assistente.
  */
+
+import {
+  fetchIbgeIndicadoresCidadesResumo,
+  montarTextoIndicadoresCidadesIbge
+} from "./ibgeIndicadoresSidra.js";
 
 const IBGE_BASE = "https://servicodados.ibge.gov.br/api/v1/localidades";
 
@@ -117,6 +122,20 @@ export async function fetchIbgeContextoMunicipio(codigoIbge) {
 
   const populacaoCenso2022 = await fetchIbgePopulacaoCenso2022(id);
 
+  let indicadoresCidades = null;
+  let textoIndicadoresCidades = "";
+  try {
+    indicadoresCidades = await fetchIbgeIndicadoresCidadesResumo(
+      id,
+      populacaoCenso2022
+    );
+    textoIndicadoresCidades = montarTextoIndicadoresCidadesIbge(
+      indicadoresCidades
+    ).trim();
+  } catch (e) {
+    console.warn("IBGE indicadores Cidades (SIDRA):", e?.message || e);
+  }
+
   const localidade = extrairLocalidadeParaContexto(raw);
   const listaDistritos = distritos
     .slice(0, 80)
@@ -128,19 +147,25 @@ export async function fetchIbgeContextoMunicipio(codigoIbge) {
     .map((x) => ({ id: x.id, nome: x.nome }))
     .filter((x) => x.nome);
 
-  const textoTerritorial = montarTextoNarrativoIbge({
+  const textoTerritorialBase = montarTextoNarrativoIbge({
     localidade,
     distritos: listaDistritos,
     subdistritos: listaSubdistritos,
     populacaoCenso2022
   });
 
+  const textoTerritorial = [textoTerritorialBase, textoIndicadoresCidades]
+    .filter(Boolean)
+    .join("\n\n");
+
   return {
-    versao: 3,
-    fonte: "IBGE — Localidades + agregados (Censo 2022 populacao)",
+    versao: 4,
+    fonte:
+      "IBGE — Localidades + agregados (Censo 2022, estimativas populacao, area, PIB, IDHM — API publica)",
     municipioId: raw.id,
     localidade,
     populacaoCenso2022,
+    indicadoresCidades,
     divisoesTerritoriais: {
       quantidadeDistritos: distritos.length,
       distritos: listaDistritos,

@@ -1,4 +1,18 @@
 import { prisma } from "../utils/prisma.js";
+import {
+  getVigilanciaOverviewCards,
+  listarUnidadesTerritoriaisVigilancia
+} from "./vigilanciaOverview.service.js";
+import {
+  getBpcImportStatusSnapshot,
+  getCaduImportStatusSnapshot
+} from "./caduBpcImportSnapshot.service.js";
+
+const MAX_UNIDADES_CRAS_PAINEL = 80;
+const CADU_MESES_ATUALIZACAO = Math.max(
+  1,
+  Number(process.env.CADU_ATUALIZACAO_MESES || 24)
+);
 
 function sumMetricasRows(rows, chave) {
   return rows.reduce((s, r) => {
@@ -128,13 +142,76 @@ export async function resumoRmaPopPorIbge(codigoIbge) {
   };
 }
 
+function pctDoTotal(parte, total) {
+  const p = Number(parte);
+  const t = Number(total);
+  if (!t || t <= 0 || Number.isNaN(p)) return null;
+  return ((100 * p) / t).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
+function textoSecaoCardsPainel(titulo, cards) {
+  if (!cards) return "";
+  const c = cards;
+  const tp = Number(c.totalPessoas) || 0;
+  const tf = Number(c.totalFamilias) || 0;
+  const linhas = [
+    titulo,
+    `  Familias (neste recorte): ${c.totalFamilias}; Pessoas: ${c.totalPessoas}.`,
+    `  Sexo — Homens: ${c.totalHomens}${pctDoTotal(c.totalHomens, tp) != null ? ` (${pctDoTotal(c.totalHomens, tp)}% do total de pessoas)` : ""}; Mulheres: ${c.totalMulheres}${pctDoTotal(c.totalMulheres, tp) != null ? ` (${pctDoTotal(c.totalMulheres, tp)}%)` : ""}.`,
+    `  Faixas etarias: 0-6 ${c.primeiraInfancia}; 7-14 ${c.criancasAdolescentes}; 15-17 ${c.adolescentes}; 18-29 ${c.jovens}; 30-59 ${c.adultos}; 60+ ${c.idosos}.`,
+    `  Pessoas com deficiencia: ${c.pessoasComDeficiencia}${pctDoTotal(c.pessoasComDeficiencia, tp) != null ? ` (${pctDoTotal(c.pessoasComDeficiencia, tp)}%)` : ""} — visual ${c.defVisual}; auditiva ${c.defAuditiva}; fisica ${c.defFisica}; intelectual ${c.defIntelectual}; mental ${c.defMental}.`,
+    `  BPC (cruzamento CadU): com BPC ${c.pessoasComBpc}${pctDoTotal(c.pessoasComBpc, tp) != null ? ` (${pctDoTotal(c.pessoasComBpc, tp)}%)` : ""}; BPC idoso ${c.pessoasBpcIdoso}; BPC deficiencia ${c.pessoasBpcDeficiencia}.`,
+    `  Renda familiar (per capita): pobreza ate 1/4 SM ${c.familiasPobreza}${pctDoTotal(c.familiasPobreza, tf) != null ? ` (${pctDoTotal(c.familiasPobreza, tf)}% das familias)` : ""}; baixa renda (ate meio SM) ${c.familiasBaixaRenda}${pctDoTotal(c.familiasBaixaRenda, tf) != null ? ` (${pctDoTotal(c.familiasBaixaRenda, tf)}%)` : ""}; acima meio SM ${c.familiasAcimaMeioSalario}${pctDoTotal(c.familiasAcimaMeioSalario, tf) != null ? ` (${pctDoTotal(c.familiasAcimaMeioSalario, tf)}%)` : ""}; com PBF ${c.familiasComPbf}${pctDoTotal(c.familiasComPbf, tf) != null ? ` (${pctDoTotal(c.familiasComPbf, tf)}%)` : ""}; risco violacao direitos ${c.familiasRiscoViolacao}; inseguranca alimentar ${c.familiasInsegurancaAlimentar}${pctDoTotal(c.familiasInsegurancaAlimentar, tf) != null ? ` (${pctDoTotal(c.familiasInsegurancaAlimentar, tf)}%)` : ""}.`,
+    `  Populacoes prioritarias: trabalho infantil ${c.pessoasTrabalhoInfantil}; situacao de rua ${c.pessoasSituacaoRua}; criancas 7-15 fora da escola ${c.criancasForaEscola}; adultos baixa escolaridade ${c.adultosBaixaEscolaridade}.`
+  ];
+  return linhas.join("\n");
+}
+
 /**
- * Monta texto longo para o assistente: IBGE + populacao + CadU + RMA + comparativo.
+ * Painel CADU (views vw_vig_*) municipal + por unidade territorial (CRAS), mais status de importacao.
+ * Base unica do municipio em contexto.
+ */
+export async function obterPainelCadVigilanciaCompleto() {
+  const [caduImport, bpcImport] = await Promise.all([
+    getCaduImportStatusSnapshot().catch(() => null),
+    getBpcImportStatusSnapshot().catch(() => null)
+  ]);
+
+  const out = {
+    caduImport,
+    bpcImport,
+    municipal: null,
+    porCras: [],
+    aviso: null
+  };
+
+  try {
+    out.municipal = await getVigilanciaOverviewCards("TODOS", []);
+    const unidades = await listarUnidadesTerritoriaisVigilancia();
+    const slice = unidades.slice(0, MAX_UNIDADES_CRAS_PAINEL);
+    for (const u of slice) {
+      const { cards } = await getVigilanciaOverviewCards(u.codigo, []);
+      out.porCras.push({ codigo: u.codigo, nome: u.nome, cards });
+    }
+    if (unidades.length > MAX_UNIDADES_CRAS_PAINEL) {
+      out.aviso = `Listagem por CRAS limitada a ${MAX_UNIDADES_CRAS_PAINEL} unidades (${unidades.length} encontradas).`;
+    }
+  } catch (e) {
+    out.aviso =
+      e?.message ||
+      "Falha ao consultar views de vigilancia (vw_vig_*). Atualize as bases no painel Vigilancia.";
+    console.error("obterPainelCadVigilanciaCompleto:", e);
+  }
+
+  return out;
+}
+
+/**
+ * Monta texto longo para o assistente: IBGE + populacao + painel CADU (municipio + CRAS) + RMA.
  */
 export function montarTextoComparativoCompleto({
   textoTerritorialIbge,
-  cadu,
-  bpc,
+  painelCadVigilancia,
   rmaCras,
   rmaCreas,
   rmaPop
@@ -148,30 +225,72 @@ export function montarTextoComparativoCompleto({
     "(Populacao Censo 2022 acima, quando presente, serve como denominador aproximado para taxas com CadUnico e RMA.)"
   );
 
-  if (cadu && (cadu.familiasCadastradas > 0 || cadu.pessoasVinculadasFamilias > 0)) {
+  const p = painelCadVigilancia;
+  if (p?.caduImport) {
+    const ci = p.caduImport;
     blocos.push("");
-    blocos.push("--- Cadastro Unico (base interna importada) ---");
+    blocos.push("--- Cadastro Unico (importacao — base unica do municipio) ---");
     blocos.push(
-      `Familias no recorte municipal (campo municipio): ${cadu.familiasCadastradas.toLocaleString("pt-BR")}.`
+      `Linhas brutas (pessoas): ${Number(ci.totalPessoas || 0).toLocaleString("pt-BR")}; familias na base: ${Number(ci.totalFamilias || 0).toLocaleString("pt-BR")}.`
     );
     blocos.push(
-      `Pessoas vinculadas a essas familias: ${cadu.pessoasVinculadasFamilias.toLocaleString("pt-BR")}.`
+      `Familias com Bolsa Familia: ${Number(ci.familiasComBolsa || 0).toLocaleString("pt-BR")}; atualizacao cadastral (ultimos ${CADU_MESES_ATUALIZACAO} meses): ${ci.percentualAtualizacaoCadastral || "0%"}.`
     );
-    blocos.push(`Observacao: ${cadu.criterio}`);
+    if (ci.ultimoUpload?.nomeArquivo) {
+      blocos.push(`Ultimo arquivo importado: ${ci.ultimoUpload.nomeArquivo}.`);
+    }
   } else {
     blocos.push("");
-    blocos.push("--- Cadastro Unico (base interna) ---");
+    blocos.push("--- Cadastro Unico (importacao) ---");
+    blocos.push("Sem dados de status de importacao disponiveis.");
+  }
+
+  if (p?.bpcImport) {
+    const bi = p.bpcImport;
+    blocos.push("");
+    blocos.push("--- BPC (importacao — base unica do municipio) ---");
     blocos.push(
-      "Sem familias encontradas para este nome de municipio no cadastro importado, ou importacao ausente."
+      `Total de registros: ${Number(bi.total || 0).toLocaleString("pt-BR")}; idosos: ${Number(bi.idosos || 0).toLocaleString("pt-BR")}; deficientes: ${Number(bi.deficientes || 0).toLocaleString("pt-BR")}.`
+    );
+    if (bi.competenciaReferencia) {
+      blocos.push(`Competencia de referencia (ultimo upload): ${bi.competenciaReferencia}.`);
+    }
+  }
+
+  if (p?.municipal?.cards) {
+    blocos.push("");
+    blocos.push(
+      textoSecaoCardsPainel(
+        "--- Painel de vigilancia CADU — municipio inteiro (unidade TODOS; views vw_vig_*) ---",
+        p.municipal.cards
+      )
+    );
+  } else {
+    blocos.push("");
+    blocos.push("--- Painel de vigilancia CADU (municipio) ---");
+    blocos.push(
+      p?.aviso ||
+        "Visao municipal indisponivel (views nao encontradas ou nao atualizadas)."
     );
   }
 
-  if (bpc?.beneficiariosBpc != null && bpc.beneficiariosBpc > 0) {
+  if (Array.isArray(p?.porCras) && p.porCras.length > 0) {
     blocos.push("");
-    blocos.push("--- BPC (base interna importada) ---");
-    blocos.push(
-      `Registros de beneficiarios com municipio compativel: ${bpc.beneficiariosBpc.toLocaleString("pt-BR")}.`
-    );
+    blocos.push("--- Mesmo painel, recortado por unidade territorial (CRAS) ---");
+    for (const u of p.porCras) {
+      blocos.push("");
+      blocos.push(
+        textoSecaoCardsPainel(
+          `Unidade ${u.nome} (codigo ${u.codigo})`,
+          u.cards
+        )
+      );
+    }
+  }
+
+  if (p?.aviso && p.municipal?.cards) {
+    blocos.push("");
+    blocos.push(`Aviso painel: ${p.aviso}`);
   }
 
   const pushRma = (titulo, r) => {
@@ -195,7 +314,7 @@ export function montarTextoComparativoCompleto({
     "- IBGE Censo 2022: populacao residente (universo demografico)."
   );
   blocos.push(
-    "- CadUnico: pessoas/familias vulneraveis cadastradas no recorte importado (ordem de grandeza; depende da qualidade do campo municipio)."
+    "- CadUnico (painel): mesma base importada do municipio; recorte por CRAS segue codigo de unidade territorial no CadU; nao confunda com distrito IBGE."
   );
   blocos.push(
     "- RMA: volume de atendimentos/registros SUAS no mes (producao), comparavel entre si e com a populacao apenas via taxas aproximadas."
@@ -207,19 +326,17 @@ export function montarTextoComparativoCompleto({
   return blocos.join("\n");
 }
 
-export async function obterComparativoCompletoParaSync({ codigoIbge, nomeMunicipio, uf }) {
+export async function obterComparativoCompletoParaSync({ codigoIbge }) {
   const cod = String(codigoIbge).replace(/\D/g, "").padStart(7, "0");
-  const [cadu, bpc, rmaCras, rmaCreas, rmaPop] = await Promise.all([
-    resumoCadunicoPorMunicipio(nomeMunicipio),
-    resumoBpcPorMunicipio(nomeMunicipio, uf),
+  const [painelCadVigilancia, rmaCras, rmaCreas, rmaPop] = await Promise.all([
+    obterPainelCadVigilanciaCompleto(),
     resumoRmaCrasPorIbge(cod),
     resumoRmaCreasPorIbge(cod),
     resumoRmaPopPorIbge(cod)
   ]);
 
   return {
-    cadu,
-    bpc,
+    painelCadVigilancia,
     rmaCras,
     rmaCreas,
     rmaPop

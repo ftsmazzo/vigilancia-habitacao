@@ -145,15 +145,12 @@ router.post(
       const ibgeCtx = await fetchIbgeContextoMunicipio(codigo);
       const loc = ibgeCtx.localidade || {};
       const comp = await obterComparativoCompletoParaSync({
-        codigoIbge: codigo,
-        nomeMunicipio: loc.nome,
-        uf: loc.uf
+        codigoIbge: codigo
       });
       ibgeCtx.comparativoCadRmaIbge = comp;
       ibgeCtx.textoContextoAssistente = montarTextoComparativoCompleto({
         textoTerritorialIbge: ibgeCtx.textoTerritorial,
-        cadu: comp.cadu,
-        bpc: comp.bpc,
+        painelCadVigilancia: comp.painelCadVigilancia,
         rmaCras: comp.rmaCras,
         rmaCreas: comp.rmaCreas,
         rmaPop: comp.rmaPop

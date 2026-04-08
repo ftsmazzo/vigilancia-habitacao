@@ -56,9 +56,22 @@ export function resumoMunicipioParaRag(perfil) {
         `Populacao Censo 2022 (IBGE): ${ibge.populacaoCenso2022.valor}.`
       );
     }
+    if (ibge.indicadoresCidades?.pibPerCapitaReaisCalculado?.valor != null) {
+      partes.push(
+        `PIB per capita (IBGE, calculado): R$ ${Number(ibge.indicadoresCidades.pibPerCapitaReaisCalculado.valor).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}.`
+      );
+    }
     const comp = ibge.comparativoCadRmaIbge;
-    if (comp?.cadu?.familiasCadastradas != null) {
-      partes.push(`CadUnico (import): ${comp.cadu.familiasCadastradas} familias.`);
+    const painel = comp?.painelCadVigilancia;
+    if (painel?.caduImport?.totalFamilias != null) {
+      partes.push(
+        `CadUnico (import): ${painel.caduImport.totalFamilias} familias.`
+      );
+    }
+    if (painel?.municipal?.cards?.totalPessoas != null) {
+      partes.push(
+        `Painel vigilancia municipal: ${painel.municipal.cards.totalPessoas} pessoas.`
+      );
     }
     if (comp?.rmaCras?.totaisMunicipio?.c1 != null) {
       partes.push(`RMA CRAS C.1 (ultimo mes sistema): ${comp.rmaCras.totaisMunicipio.c1}.`);
@@ -88,14 +101,20 @@ export function formatMunicipioPerfilForPrompt(perfil) {
     const ibge = perfil.ibgeCacheJson;
     if (ibge.textoContextoAssistente && String(ibge.textoContextoAssistente).trim()) {
       blocos.push(
-        `### Contexto territorial (IBGE — obtido pela sincronizacao)\n${String(ibge.textoContextoAssistente).trim().slice(0, 6000)}`
+        `### Contexto territorial (IBGE + dados locais — obtido pela sincronizacao)\n${String(ibge.textoContextoAssistente).trim().slice(0, 24000)}`
       );
     }
-    if ((ibge.versao === 2 || ibge.versao === 3) && ibge.localidade) {
+    if (
+      (ibge.versao === 2 ||
+        ibge.versao === 3 ||
+        ibge.versao === 4) &&
+      ibge.localidade
+    ) {
       const resumoDiv = ibge.divisoesTerritoriais;
       const extra = {
         localidade: ibge.localidade,
         populacaoCenso2022: ibge.populacaoCenso2022,
+        indicadoresCidades: ibge.indicadoresCidades,
         quantidadeDistritos: resumoDiv?.quantidadeDistritos,
         quantidadeSubdistritos: resumoDiv?.quantidadeSubdistritos,
         amostraDistritos: Array.isArray(resumoDiv?.distritos)
@@ -103,8 +122,27 @@ export function formatMunicipioPerfilForPrompt(perfil) {
           : undefined,
         comparativoCadRmaIbge: ibge.comparativoCadRmaIbge
           ? {
-              cadu: ibge.comparativoCadRmaIbge.cadu,
-              bpc: ibge.comparativoCadRmaIbge.bpc,
+              painelCadVigilancia: ibge.comparativoCadRmaIbge.painelCadVigilancia
+                ? {
+                    caduImport: ibge.comparativoCadRmaIbge.painelCadVigilancia.caduImport,
+                    bpcImport: ibge.comparativoCadRmaIbge.painelCadVigilancia.bpcImport,
+                    aviso: ibge.comparativoCadRmaIbge.painelCadVigilancia.aviso,
+                    municipalCards:
+                      ibge.comparativoCadRmaIbge.painelCadVigilancia.municipal?.cards,
+                    porCrasResumo: Array.isArray(
+                      ibge.comparativoCadRmaIbge.painelCadVigilancia.porCras
+                    )
+                      ? ibge.comparativoCadRmaIbge.painelCadVigilancia.porCras.map(
+                          (x) => ({
+                            codigo: x.codigo,
+                            nome: x.nome,
+                            totalPessoas: x.cards?.totalPessoas,
+                            totalFamilias: x.cards?.totalFamilias
+                          })
+                        )
+                      : undefined
+                  }
+                : undefined,
               rmaCras: ibge.comparativoCadRmaIbge.rmaCras,
               rmaCreas: ibge.comparativoCadRmaIbge.rmaCreas,
               rmaPop: ibge.comparativoCadRmaIbge.rmaPop
@@ -112,7 +150,7 @@ export function formatMunicipioPerfilForPrompt(perfil) {
           : undefined
       };
       blocos.push(
-        `Dados estruturados IBGE + comparativo (complemento):\n${JSON.stringify(extra, null, 2).slice(0, 12000)}`
+        `Dados estruturados IBGE + comparativo (complemento):\n${JSON.stringify(extra, null, 2).slice(0, 14000)}`
       );
     } else if (!ibge.textoContextoAssistente) {
       blocos.push(
@@ -135,5 +173,5 @@ export function formatMunicipioPerfilForPrompt(perfil) {
     );
   }
 
-  return blocos.join("\n\n").slice(0, 20000);
+  return blocos.join("\n\n").slice(0, 36000);
 }
