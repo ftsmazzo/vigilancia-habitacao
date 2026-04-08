@@ -9,6 +9,10 @@ import {
   fetchIbgeContextoMunicipio,
   fetchMunicipiosPorUf
 } from "../utils/ibgeMunicipio.js";
+import {
+  obterComparativoCompletoParaSync,
+  montarTextoComparativoCompleto
+} from "../services/comparativoMunicipio.service.js";
 
 const router = Router();
 
@@ -140,6 +144,20 @@ router.post(
     try {
       const ibgeCtx = await fetchIbgeContextoMunicipio(codigo);
       const loc = ibgeCtx.localidade || {};
+      const comp = await obterComparativoCompletoParaSync({
+        codigoIbge: codigo,
+        nomeMunicipio: loc.nome,
+        uf: loc.uf
+      });
+      ibgeCtx.comparativoCadRmaIbge = comp;
+      ibgeCtx.textoContextoAssistente = montarTextoComparativoCompleto({
+        textoTerritorialIbge: ibgeCtx.textoTerritorial,
+        cadu: comp.cadu,
+        bpc: comp.bpc,
+        rmaCras: comp.rmaCras,
+        rmaCreas: comp.rmaCreas,
+        rmaPop: comp.rmaPop
+      });
       const existente = await prisma.municipioPerfil.findUnique({
         where: { codigoIbge: codigo }
       });

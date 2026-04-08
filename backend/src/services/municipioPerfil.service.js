@@ -51,6 +51,18 @@ export function resumoMunicipioParaRag(perfil) {
         `Distritos administrativos (IBGE): ${ibge.divisoesTerritoriais.quantidadeDistritos}.`
       );
     }
+    if (ibge.populacaoCenso2022?.valor != null) {
+      partes.push(
+        `Populacao Censo 2022 (IBGE): ${ibge.populacaoCenso2022.valor}.`
+      );
+    }
+    const comp = ibge.comparativoCadRmaIbge;
+    if (comp?.cadu?.familiasCadastradas != null) {
+      partes.push(`CadUnico (import): ${comp.cadu.familiasCadastradas} familias.`);
+    }
+    if (comp?.rmaCras?.totaisMunicipio?.c1 != null) {
+      partes.push(`RMA CRAS C.1 (ultimo mes sistema): ${comp.rmaCras.totaisMunicipio.c1}.`);
+    }
   }
   return partes.join(" ");
 }
@@ -79,17 +91,28 @@ export function formatMunicipioPerfilForPrompt(perfil) {
         `### Contexto territorial (IBGE — obtido pela sincronizacao)\n${String(ibge.textoContextoAssistente).trim().slice(0, 6000)}`
       );
     }
-    if (ibge.versao === 2 && ibge.localidade) {
+    if ((ibge.versao === 2 || ibge.versao === 3) && ibge.localidade) {
       const resumoDiv = ibge.divisoesTerritoriais;
       const extra = {
         localidade: ibge.localidade,
+        populacaoCenso2022: ibge.populacaoCenso2022,
         quantidadeDistritos: resumoDiv?.quantidadeDistritos,
+        quantidadeSubdistritos: resumoDiv?.quantidadeSubdistritos,
         amostraDistritos: Array.isArray(resumoDiv?.distritos)
           ? resumoDiv.distritos.slice(0, 25).map((x) => x.nome)
+          : undefined,
+        comparativoCadRmaIbge: ibge.comparativoCadRmaIbge
+          ? {
+              cadu: ibge.comparativoCadRmaIbge.cadu,
+              bpc: ibge.comparativoCadRmaIbge.bpc,
+              rmaCras: ibge.comparativoCadRmaIbge.rmaCras,
+              rmaCreas: ibge.comparativoCadRmaIbge.rmaCreas,
+              rmaPop: ibge.comparativoCadRmaIbge.rmaPop
+            }
           : undefined
       };
       blocos.push(
-        `Dados estruturados IBGE (complemento):\n${JSON.stringify(extra, null, 2).slice(0, 8000)}`
+        `Dados estruturados IBGE + comparativo (complemento):\n${JSON.stringify(extra, null, 2).slice(0, 12000)}`
       );
     } else if (!ibge.textoContextoAssistente) {
       blocos.push(

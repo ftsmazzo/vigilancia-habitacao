@@ -32,6 +32,43 @@ async function fetchJson(url) {
 }
 
 /**
+ * Populacao residente Censo 2022 (municipio) — tabela 9514, variavel 93.
+ * @see https://servicodados.ibge.gov.br/api/docs/agregados
+ */
+export async function fetchIbgePopulacaoCenso2022(codigoIbge) {
+  const id = String(codigoIbge).replace(/\D/g, "").padStart(7, "0");
+  const url = `https://servicodados.ibge.gov.br/api/v3/agregados/9514/periodos/2022/variaveis/93?localidades=N6%5B${id}%5D`;
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), 20000);
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: ac.signal
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || !data[0]) return null;
+    const serie = data[0]?.resultados?.[0]?.series?.[0]?.serie;
+    if (!serie || typeof serie !== "object") return null;
+    const valor = serie["2022"] ?? serie[Object.keys(serie)[0]];
+    if (valor == null) return null;
+    const n = Number(String(valor).replace(/\D/g, ""));
+    if (Number.isNaN(n)) return null;
+    return {
+      valor: n,
+      variavel: data[0]?.variavel || "Populacao residente",
+      tabela: "9514",
+      periodo: "2022"
+    };
+  } catch (e) {
+    console.warn("IBGE populacao Censo 2022:", e?.message || e);
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/**
  * Lista municipios de uma UF (para selects / validacao de codigo).
  * GET .../estados/{UF}/municipios
  */
@@ -70,28 +107,49 @@ export async function fetchIbgeContextoMunicipio(codigoIbge) {
     console.warn("IBGE distritos:", e?.message || e);
   }
 
+  let subdistritos = [];
+  try {
+    const s = await fetchJson(`${IBGE_BASE}/municipios/${id}/subdistritos`);
+    subdistritos = Array.isArray(s) ? s : [];
+  } catch (e) {
+    console.warn("IBGE subdistritos:", e?.message || e);
+  }
+
+  const populacaoCenso2022 = await fetchIbgePopulacaoCenso2022(id);
+
   const localidade = extrairLocalidadeParaContexto(raw);
   const listaDistritos = distritos
     .slice(0, 80)
     .map((x) => ({ id: x.id, nome: x.nome }))
     .filter((x) => x.nome);
 
-  const textoNarrativo = montarTextoNarrativoIbge({
+  const listaSubdistritos = subdistritos
+    .slice(0, 40)
+    .map((x) => ({ id: x.id, nome: x.nome }))
+    .filter((x) => x.nome);
+
+  const textoTerritorial = montarTextoNarrativoIbge({
     localidade,
-    distritos: listaDistritos
+    distritos: listaDistritos,
+    subdistritos: listaSubdistritos,
+    populacaoCenso2022
   });
 
   return {
-    versao: 2,
-    fonte: "IBGE — API de localidades (dados publicos)",
+    versao: 3,
+    fonte: "IBGE — Localidades + agregados (Censo 2022 populacao)",
     municipioId: raw.id,
     localidade,
+    populacaoCenso2022,
     divisoesTerritoriais: {
       quantidadeDistritos: distritos.length,
-      distritos: listaDistritos
+      distritos: listaDistritos,
+      quantidadeSubdistritos: subdistritos.length,
+      subdistritos: listaSubdistritos
     },
-    /** Paragrafo pronto para injetar no prompt do assistente. */
-    textoContextoAssistente: textoNarrativo,
+    /** Texto territorial + populacao IBGE; o route acrescenta CADU/RMA. */
+    textoTerritorial,
+    textoContextoAssistente: textoTerritorial,
     atualizadoEm: new Date().toISOString()
   };
 }
@@ -126,12 +184,17 @@ function extrairLocalidadeParaContexto(data) {
   };
 }
 
-function montarTextoNarrativoIbge({ localidade, distritos }) {
+function montarTextoNarrativoIbge({ localidade, distritos, subdistritos, populacaoCenso2022 }) {
   if (!localidade?.nome) return "";
   const linhas = [];
   linhas.push(
     `Municipio ${localidade.nome} (${localidade.uf}), codigo IBGE ${localidade.id}.`
   );
+  if (populacaoCenso2022?.valor != null) {
+    linhas.push(
+      `Populacao residente Censo Demografico 2022 (IBGE): ${Number(populacaoCenso2022.valor).toLocaleString("pt-BR")} pessoas (tabela ${populacaoCenso2022.tabela}, variavel populacao residente).`
+    );
+  }
   if (localidade.mesorregiao) {
     linhas.push(`Mesorregiao geografica: ${localidade.mesorregiao}.`);
   }
@@ -153,6 +216,13 @@ function montarTextoNarrativoIbge({ localidade, distritos }) {
     const resto = nomes.length > 15 ? ` e mais ${nomes.length - 15} distrito(s)` : "";
     linhas.push(
       `Divisao em ${distritos.length} distrito(s) administrativo(s) cadastrado(s) pelo IBGE (exemplos: ${amostra}${resto}).`
+    );
+  }
+  if (subdistritos?.length) {
+    const nomes = subdistritos.map((d) => d.nome).filter(Boolean);
+    const amostra = nomes.slice(0, 12).join(", ");
+    linhas.push(
+      `Subdistritos cadastrados pelo IBGE: ${subdistritos.length} (exemplos: ${amostra}${nomes.length > 12 ? "..." : ""}).`
     );
   }
   linhas.push(

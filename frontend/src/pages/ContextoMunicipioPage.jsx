@@ -214,11 +214,9 @@ export function ContextoMunicipioPage() {
       if (narrativa && String(narrativa).trim()) {
         setPreviewIbgeContexto(String(narrativa).trim());
       }
-      const nDist = data.ibge?.divisoesTerritoriais?.quantidadeDistritos;
       setMensagem(
-        `Sincronizacao IBGE concluida. O assistente passa a usar mesorregiao, regioes geograficas e ` +
-          (nDist != null ? `${nDist} distrito(s) administrativo(s)` : "divisoes territoriais") +
-          ` como contexto territorial.`
+        `Sincronizacao concluida: IBGE (territorio + populacao Censo 2022 quando disponivel) + ` +
+          `resumo CadUnico/BPC e ultimos RMA CRAS/CREAS/POP do sistema para comparativo.`
       );
     } catch (err) {
       setErro(err?.response?.data?.message || "Falha ao sincronizar com IBGE.");
