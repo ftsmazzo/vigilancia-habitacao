@@ -3,6 +3,12 @@ import { z } from "zod";
 import XLSX from "xlsx";
 import { prisma } from "../utils/prisma.js";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
+import {
+  extrairCodFormaColetaFamilia,
+  extrairCpfParceiroRfConjuge,
+  extrairParentescoPessoa
+} from "../utils/caduDominios.js";
+import { normalizeCpf } from "../utils/cpf.js";
 
 const router = Router();
 
@@ -19,6 +25,9 @@ const allowedColumns = [
   "caduNome",
   "caduNis",
   "caduDataAtualFam",
+  "formaColetaFamilia",
+  "parentescoRfPessoa",
+  "cpfConjugeOuCompanheiro",
   "recebePbf",
   "recebeBpc",
   "tipoBpc"
@@ -66,6 +75,18 @@ function buildColumnMap() {
     caduNome: { label: "Nome CADU", value: (item) => item.caduNome },
     caduNis: { label: "NIS CADU", value: (item) => item.caduNis },
     caduDataAtualFam: { label: "Data Atualizacao CADU", value: (item) => formatDate(item.caduDataAtualFam) },
+    formaColetaFamilia: {
+      label: "Forma coleta (familia — visita domiciliar)",
+      value: (item) => item.formaColetaFamilia || ""
+    },
+    parentescoRfPessoa: {
+      label: "Parentesco com RF (CadU)",
+      value: (item) => item.parentescoRfPessoa || ""
+    },
+    cpfConjugeOuCompanheiro: {
+      label: "CPF conjuge ou companheiro(a) do RF",
+      value: (item) => item.cpfConjugeOuCompanheiro || ""
+    },
     recebePbf: { label: "Recebe Bolsa Familia", value: (item) => (item.recebePbfCalculado ? "SIM" : "NAO") },
     recebeBpc: { label: "Recebe BPC", value: (item) => (item.recebeBpcCalculado ? "SIM" : "NAO") },
     tipoBpc: { label: "Tipo BPC", value: (item) => item.tipoBpcCalculado || "" }
@@ -109,7 +130,8 @@ async function loadRelatorioItens({
             nisPessoa: true,
             dataAtualFam: true,
             recebePbfFam: true,
-            recebePbfPessoa: true
+            recebePbfPessoa: true,
+            codFamiliarFam: true
           }
         }),
         prisma.bpcBeneficio.findMany({
@@ -122,16 +144,60 @@ async function loadRelatorioItens({
   const caduByCpf = new Map(caduRows.map((row) => [row.cpf, row]));
   const bpcByCpf = new Map(bpcRows.map((row) => [row.cpf, row]));
 
+  const familiasIds = [...new Set(caduRows.map((r) => r.codFamiliarFam).filter(Boolean))];
+  const [familiasRows, rawLinhasRows] =
+    familiasIds.length > 0
+      ? await Promise.all([
+          prisma.caduFamilia.findMany({
+            where: { codFamiliarFam: { in: familiasIds } },
+            select: { codFamiliarFam: true, rawDadosTxt: true }
+          }),
+          prisma.caduRawLinha.findMany({
+            where: { codFamiliarFam: { in: familiasIds } },
+            select: { codFamiliarFam: true, dadosTxt: true, cpfPessoa: true }
+          })
+        ])
+      : [[], []];
+
+  const familiaByCod = new Map(familiasRows.map((f) => [f.codFamiliarFam, f]));
+  const rawByFam = new Map();
+  for (const l of rawLinhasRows) {
+    if (!l.codFamiliarFam) continue;
+    if (!rawByFam.has(l.codFamiliarFam)) rawByFam.set(l.codFamiliarFam, []);
+    rawByFam.get(l.codFamiliarFam).push(l);
+  }
+
   return itensBase
     .map((item) => {
       const cadu = caduByCpf.get(item.cpf);
       const bpcItem = bpcByCpf.get(item.cpf);
+
+      let formaColetaFamilia = "";
+      let parentescoRfPessoa = "";
+      let cpfConjugeOuCompanheiro = "";
+      if (cadu?.codFamiliarFam) {
+        const fam = familiaByCod.get(cadu.codFamiliarFam);
+        const linhas = rawByFam.get(cadu.codFamiliarFam) || [];
+        const rawTxt = fam?.rawDadosTxt || linhas[0]?.dadosTxt || "";
+        const fc = extrairCodFormaColetaFamilia(rawTxt);
+        formaColetaFamilia =
+          fc.codigo && fc.label ? `${fc.codigo} — ${fc.label}` : fc.label || fc.codigo;
+        const cpfNorm = normalizeCpf(cadu.cpf);
+        const par = extrairParentescoPessoa(cpfNorm, linhas);
+        parentescoRfPessoa =
+          par.codigo && par.label ? `${par.codigo} — ${par.label}` : par.label || par.codigo;
+        cpfConjugeOuCompanheiro = extrairCpfParceiroRfConjuge(cpfNorm, linhas);
+      }
+
       return {
         ...item,
         empreendimentoNome: item.empreendimento?.nome || "",
         caduNome: cadu?.nomePessoa || "",
         caduNis: cadu?.nisPessoa || "",
         caduDataAtualFam: cadu?.dataAtualFam || null,
+        formaColetaFamilia,
+        parentescoRfPessoa,
+        cpfConjugeOuCompanheiro,
         recebePbfCalculado: Boolean(cadu?.recebePbfFam || cadu?.recebePbfPessoa),
         recebeBpcCalculado: Boolean(bpcItem),
         tipoBpcCalculado: bpcItem?.tipo || ""

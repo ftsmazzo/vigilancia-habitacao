@@ -14,6 +14,12 @@ const OPCOES_COLUNAS_RELATORIO = [
   { key: "caduNome", label: "Nome CADU" },
   { key: "caduNis", label: "NIS CADU" },
   { key: "caduDataAtualFam", label: "Data atualizacao CADU" },
+  {
+    key: "formaColetaFamilia",
+    label: "Forma coleta (familia — visita domiciliar)"
+  },
+  { key: "parentescoRfPessoa", label: "Parentesco com RF (CadU)" },
+  { key: "cpfConjugeOuCompanheiro", label: "CPF conjuge ou companheiro(a) do RF" },
   { key: "recebePbf", label: "Recebe Bolsa Familia" },
   { key: "recebeBpc", label: "Recebe BPC" },
   { key: "tipoBpc", label: "Tipo BPC" }
@@ -70,6 +76,9 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
     "cpf",
     "statusVigilancia",
     "caduDataAtualFam",
+    "formaColetaFamilia",
+    "parentescoRfPessoa",
+    "cpfConjugeOuCompanheiro",
     "recebePbf",
     "recebeBpc",
     "tipoBpc"
