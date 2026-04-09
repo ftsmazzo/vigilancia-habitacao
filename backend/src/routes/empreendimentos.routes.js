@@ -38,6 +38,55 @@ router.get("/", requireAuth, requireRole("MASTER", "ADMIN", "HABITACAO"), async 
   return res.json(itens);
 });
 
+/** Reseta cruzamento em todos os empreendimentos (apenas MASTER; exige texto de confirmacao). */
+router.post(
+  "/cruzamento/reset-todos",
+  requireAuth,
+  requireRole("MASTER"),
+  async (req, res) => {
+    const confirmacao = String(req.body?.confirmacao || "").trim();
+    if (confirmacao !== "RESETAR_TODOS_OS_CRUZAMENTOS") {
+      return res.status(400).json({
+        error: true,
+        message:
+          'Envie JSON { "confirmacao": "RESETAR_TODOS_OS_CRUZAMENTOS" } para confirmar a operacao.',
+        code: "RESET_TODOS_CONFIRM_REQUIRED"
+      });
+    }
+
+    const todos = await prisma.preSelecionado.findMany({ select: { id: true } });
+    const ids = todos.map((r) => r.id);
+    let atualizados = 0;
+    if (ids.length) {
+      await prisma.$transaction([
+        prisma.dadosCruzados.deleteMany({ where: { preSelecionadoId: { in: ids } } }),
+        prisma.preSelecionado.updateMany({
+          where: { id: { in: ids } },
+          data: {
+            statusCruzamento: "PENDENTE",
+            statusVigilancia: "PENDENTE_ANALISE",
+            motivoStatus: null,
+            recebePbf: null,
+            cruzadoEm: null,
+            observacoes: null
+          }
+        })
+      ]);
+      atualizados = ids.length;
+    }
+
+    await prisma.logAuditoria.create({
+      data: {
+        usuarioId: req.user.sub,
+        acao: "CRUZAMENTO_RESET_TODOS",
+        detalhes: { preSelecionadosAfetados: atualizados }
+      }
+    });
+
+    return res.json({ preSelecionadosAfetados: atualizados });
+  }
+);
+
 router.post("/", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -228,6 +277,88 @@ router.get("/:id/pre-selecionados", requireAuth, requireRole("MASTER", "ADMIN", 
     itens
   });
 });
+
+/** Remove todos os pre-selecionados do empreendimento (lista importada); apaga tambem DadosCruzados em cascata. */
+router.delete(
+  "/:id/pre-selecionados",
+  requireAuth,
+  requireRole("MASTER", "ADMIN"),
+  async (req, res) => {
+    const empreendimento = await getEmpreendimentoByScope(req, req.params.id);
+    if (!empreendimento) {
+      return res.status(404).json({
+        error: true,
+        message: "Empreendimento nao encontrado",
+        code: "EMPREENDIMENTO_NOT_FOUND"
+      });
+    }
+
+    const deleted = await prisma.preSelecionado.deleteMany({
+      where: { empreendimentoId: empreendimento.id }
+    });
+
+    await prisma.logAuditoria.create({
+      data: {
+        usuarioId: req.user.sub,
+        acao: "PRE_SELECIONADOS_LIMPOS",
+        detalhes: { empreendimentoId: empreendimento.id, removidos: deleted.count }
+      }
+    });
+
+    return res.json({ removidos: deleted.count });
+  }
+);
+
+/** Desfaz o cruzamento: remove snapshot CADU e volta status para pendente (mantem a lista importada). */
+router.post(
+  "/:id/cruzamento/reset",
+  requireAuth,
+  requireRole("MASTER", "ADMIN"),
+  async (req, res) => {
+    const empreendimento = await getEmpreendimentoByScope(req, req.params.id);
+    if (!empreendimento) {
+      return res.status(404).json({
+        error: true,
+        message: "Empreendimento nao encontrado",
+        code: "EMPREENDIMENTO_NOT_FOUND"
+      });
+    }
+
+    const rows = await prisma.preSelecionado.findMany({
+      where: { empreendimentoId: empreendimento.id },
+      select: { id: true }
+    });
+    const ids = rows.map((r) => r.id);
+    let atualizados = 0;
+    if (ids.length) {
+      await prisma.$transaction([
+        prisma.dadosCruzados.deleteMany({ where: { preSelecionadoId: { in: ids } } }),
+        prisma.preSelecionado.updateMany({
+          where: { empreendimentoId: empreendimento.id },
+          data: {
+            statusCruzamento: "PENDENTE",
+            statusVigilancia: "PENDENTE_ANALISE",
+            motivoStatus: null,
+            recebePbf: null,
+            cruzadoEm: null,
+            observacoes: null
+          }
+        })
+      ]);
+      atualizados = ids.length;
+    }
+
+    await prisma.logAuditoria.create({
+      data: {
+        usuarioId: req.user.sub,
+        acao: "CRUZAMENTO_RESET_EMPREENDIMENTO",
+        detalhes: { empreendimentoId: empreendimento.id, preSelecionadosAfetados: atualizados }
+      }
+    });
+
+    return res.json({ preSelecionadosAfetados: atualizados });
+  }
+);
 
 router.post("/:id/cruzamento", requireAuth, requireRole("MASTER", "ADMIN"), async (req, res) => {
   const empreendimento = await getEmpreendimentoByScope(req, req.params.id);

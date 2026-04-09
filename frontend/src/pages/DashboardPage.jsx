@@ -46,7 +46,9 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
   const [progressoCadu, setProgressoCadu] = useState(0);
   const [enviandoBpc, setEnviandoBpc] = useState(false);
   const [executandoCruzamento, setExecutandoCruzamento] = useState(false);
+  const cruzamentoEmExecucaoRef = useRef(false);
   const [retornoCruzamento, setRetornoCruzamento] = useState(null);
+  const [manutencaoCarregando, setManutencaoCarregando] = useState(null);
   const [metricas, setMetricas] = useState(null);
   const [resultados, setResultados] = useState([]);
   const [resultadosPage, setResultadosPage] = useState(1);
@@ -423,6 +425,8 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
       setErro("Selecione um empreendimento para cruzar.");
       return;
     }
+    if (cruzamentoEmExecucaoRef.current) return;
+    cruzamentoEmExecucaoRef.current = true;
     setErro("");
     setMensagem("");
     setExecutandoCruzamento(true);
@@ -438,6 +442,132 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
       setErro("Falha ao executar cruzamento.");
     } finally {
       setExecutandoCruzamento(false);
+      cruzamentoEmExecucaoRef.current = false;
+    }
+  }
+
+  async function resetarCruzamentoEmpreendimento() {
+    if (!selecionadoId) {
+      setErro("Selecione um empreendimento.");
+      return;
+    }
+    if (
+      !window.confirm(
+        "Isso remove os dados cruzados (CADU/BPC na lista) e volta todos os itens para pendente. A lista importada permanece. Continuar?"
+      )
+    ) {
+      return;
+    }
+    setErro("");
+    setMensagem("");
+    setManutencaoCarregando("reset-cruzamento");
+    try {
+      const { data } = await api.post(`/empreendimentos/${selecionadoId}/cruzamento/reset`);
+      await carregarResultadosEMetricas();
+      await carregarOverview();
+      setRetornoCruzamento(null);
+      setMensagem(`Cruzamento resetado. Itens afetados: ${data.preSelecionadosAfetados ?? 0}.`);
+    } catch (_error) {
+      setErro("Falha ao resetar cruzamento.");
+    } finally {
+      setManutencaoCarregando(null);
+    }
+  }
+
+  async function limparListaEmpreendimento() {
+    if (!selecionadoId) {
+      setErro("Selecione um empreendimento.");
+      return;
+    }
+    if (
+      !window.confirm(
+        "ATENCAO: apaga TODOS os CPFs importados neste empreendimento (e dados de cruzamento). O empreendimento em si continua. Continuar?"
+      )
+    ) {
+      return;
+    }
+    setErro("");
+    setMensagem("");
+    setManutencaoCarregando("limpar-lista");
+    try {
+      const { data } = await api.delete(`/empreendimentos/${selecionadoId}/pre-selecionados`);
+      await carregarResultadosEMetricas();
+      await carregarOverview();
+      setRetornoCruzamento(null);
+      setResultados([]);
+      setMensagem(`Lista removida. Registros apagados: ${data.removidos ?? 0}.`);
+    } catch (_error) {
+      setErro("Falha ao limpar lista.");
+    } finally {
+      setManutencaoCarregando(null);
+    }
+  }
+
+  async function resetarCruzamentoTodos() {
+    const digitado = window.prompt(
+      'Para resetar o cruzamento em TODOS os empreendimentos, digite exatamente: RESETAR_TODOS_OS_CRUZAMENTOS'
+    );
+    if (digitado !== "RESETAR_TODOS_OS_CRUZAMENTOS") {
+      if (digitado != null) setErro("Texto de confirmacao incorreto.");
+      return;
+    }
+    setErro("");
+    setMensagem("");
+    setManutencaoCarregando("reset-todos");
+    try {
+      const { data } = await api.post("/empreendimentos/cruzamento/reset-todos", {
+        confirmacao: "RESETAR_TODOS_OS_CRUZAMENTOS"
+      });
+      await carregarResultadosEMetricas();
+      await carregarOverview();
+      setRetornoCruzamento(null);
+      setMensagem(`Cruzamentos resetados em todos os empreendimentos. Itens afetados: ${data.preSelecionadosAfetados ?? 0}.`);
+    } catch (error) {
+      const msg = error?.response?.data?.message;
+      setErro(msg || "Falha ao resetar cruzamentos.");
+    } finally {
+      setManutencaoCarregando(null);
+    }
+  }
+
+  async function excluirEmpreendimentoSelecionadoEdicao() {
+    if (!editEmpId) {
+      setErro("Selecione um empreendimento na lista de edicao.");
+      return;
+    }
+    const nome = itens.find((i) => i.id === editEmpId)?.nome || editEmpId;
+    if (
+      !window.confirm(
+        `Excluir permanentemente o empreendimento "${nome}"? Todas as listas e cruzamentos vinculados serao apagados.`
+      )
+    ) {
+      return;
+    }
+    setErro("");
+    setMensagem("");
+    setManutencaoCarregando("excluir-emp");
+    try {
+      await api.delete(`/empreendimentos/${editEmpId}`);
+      if (selecionadoId === editEmpId) {
+        setSelecionadoId("");
+      }
+      setEditEmpId("");
+      setEditEmpForm({
+        nome: "",
+        endereco: "",
+        municipio: "",
+        numUnidades: "",
+        status: "EM_CAPTACAO"
+      });
+      await carregarEmpreendimentos();
+      await carregarOverview();
+      setResultados([]);
+      setMetricas(null);
+      setMensagem("Empreendimento excluido.");
+    } catch (_error) {
+      setErro("Falha ao excluir empreendimento.");
+    } finally {
+      setManutencaoCarregando(null);
     }
   }
 
@@ -969,6 +1099,14 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
                     <button type="submit" disabled={!editEmpId}>
                       Salvar alteracoes
                     </button>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      disabled={!editEmpId || manutencaoCarregando === "excluir-emp"}
+                      onClick={excluirEmpreendimentoSelecionadoEdicao}
+                    >
+                      {manutencaoCarregando === "excluir-emp" ? "Excluindo..." : "Excluir empreendimento"}
+                    </button>
                   </form>
                 </section>
               </>
@@ -1039,6 +1177,46 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
                         {retornoCruzamento.naoEncontrados} | PBF: {retornoCruzamento.beneficiariosPbf}
                       </p>
                     ) : null}
+                  </section>
+
+                  <section className="card">
+                    <h3>Manutencao e limpeza</h3>
+                    <p className="muted">
+                      Use para corrigir duplicidade de execucao ou listas de teste: resetar apenas o cruzamento (mantem CPFs
+                      importados), apagar a lista deste empreendimento, ou no caso de varios empreendimentos com erro, resetar
+                      todos os cruzamentos (somente perfil MASTER).
+                    </p>
+                    <div className="form" style={{ gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        disabled={!selecionadoId || manutencaoCarregando === "reset-cruzamento"}
+                        onClick={resetarCruzamentoEmpreendimento}
+                      >
+                        {manutencaoCarregando === "reset-cruzamento"
+                          ? "Resetando..."
+                          : "Resetar cruzamento (este empreendimento)"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!selecionadoId || manutencaoCarregando === "limpar-lista"}
+                        onClick={limparListaEmpreendimento}
+                      >
+                        {manutencaoCarregando === "limpar-lista"
+                          ? "Removendo lista..."
+                          : "Apagar lista importada (este empreendimento)"}
+                      </button>
+                      {isMaster ? (
+                        <button
+                          type="button"
+                          disabled={manutencaoCarregando === "reset-todos"}
+                          onClick={resetarCruzamentoTodos}
+                        >
+                          {manutencaoCarregando === "reset-todos"
+                            ? "Resetando todos..."
+                            : "Resetar cruzamento em TODOS os empreendimentos"}
+                        </button>
+                      ) : null}
+                    </div>
                   </section>
                 </>
               ) : (

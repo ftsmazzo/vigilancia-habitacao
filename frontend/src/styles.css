@@ -97,6 +97,14 @@ body {
   cursor: not-allowed;
 }
 
+.form button.btn-danger {
+  background: linear-gradient(135deg, #b91c1c, #7f1d1d);
+}
+
+.form button.btn-danger:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
 .app-shell {
   min-height: 100vh;
 }
