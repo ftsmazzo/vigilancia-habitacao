@@ -318,3 +318,14 @@ model MunicipioPerfil {
   criadoEm        DateTime  @default(now())
   atualizadoEm    DateTime  @updatedAt
 }
+
+/// Historico de chat do Postgres Chat Memory do n8n (LangChain). Tabela criada e preenchida pelo n8n.
+/// @@ignore: Prisma nao gerencia migrate/db push nesta tabela — evita drop acidental no mesmo banco do app.
+model N8nChatHistories {
+  id         Int    @id @default(autoincrement())
+  session_id String @db.VarChar(255)
+  message    Json   @db.JsonB
+
+  @@map("n8n_chat_histories")
+  @@ignore
+}
