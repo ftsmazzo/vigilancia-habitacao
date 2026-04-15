@@ -19,27 +19,71 @@ function describeRecorteRma(r) {
   return bits.filter(Boolean).join(" — ");
 }
 
+/**
+ * Extrai texto legivel do payload do n8n (objeto, array de { output }, ou JSON em string).
+ */
+function unwrapN8nAssistantPayload(j, depth = 0) {
+  if (j == null || depth > 6) return null;
+  if (typeof j === "string") {
+    const t = j.trim();
+    if (
+      (t.startsWith("[") && t.endsWith("]")) ||
+      (t.startsWith("{") && t.endsWith("}"))
+    ) {
+      try {
+        const parsed = JSON.parse(t);
+        const inner = unwrapN8nAssistantPayload(parsed, depth + 1);
+        if (inner != null) return inner;
+      } catch {
+        /* texto comum */
+      }
+    }
+    return j;
+  }
+  if (Array.isArray(j)) {
+    const parts = j
+      .map((item) => unwrapN8nAssistantPayload(item, depth + 1))
+      .filter((x) => x != null && String(x).trim() !== "");
+    if (parts.length) return parts.join("\n\n");
+    return null;
+  }
+  if (typeof j === "object") {
+    if (j.output != null) {
+      const o = j.output;
+      if (Array.isArray(o)) {
+        const joined = o
+          .map((x) => unwrapN8nAssistantPayload(x, depth + 1) ?? String(x))
+          .filter((x) => String(x).trim() !== "")
+          .join("\n");
+        return joined || null;
+      }
+      return unwrapN8nAssistantPayload(o, depth + 1) ?? String(o);
+    }
+    if (j.text != null) return String(j.text);
+    if (j.message != null) return String(j.message);
+    if (typeof j.response === "string") return j.response;
+  }
+  return null;
+}
+
 function extractN8nReplyText(data) {
   const r = data?.response;
   if (r?.json != null) {
     const j = r.json;
-    if (typeof j === "string") return j;
-    if (j?.output != null) {
-      if (Array.isArray(j.output)) return j.output.map((x) => String(x)).join("\n");
-      return String(j.output);
-    }
-    if (j?.text != null) return String(j.text);
-    if (j?.message != null) return String(j.message);
-    if (j?.response != null) {
-      return typeof j.response === "string" ? j.response : JSON.stringify(j.response, null, 2);
-    }
+    const unwrapped = unwrapN8nAssistantPayload(j);
+    if (unwrapped != null && String(unwrapped).trim() !== "") return unwrapped;
     try {
       return JSON.stringify(j, null, 2);
     } catch {
       return String(j);
     }
   }
-  if (r?.raw != null && String(r.raw).trim()) return String(r.raw);
+  if (r?.raw != null && String(r.raw).trim()) {
+    const raw = String(r.raw);
+    const fromRaw = unwrapN8nAssistantPayload(raw);
+    if (fromRaw != null && String(fromRaw).trim() !== "") return fromRaw;
+    return raw;
+  }
   if (data?.message) return String(data.message);
   return "(Sem texto na resposta.)";
 }
