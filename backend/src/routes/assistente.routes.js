@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import {
@@ -355,14 +356,18 @@ ${message}`;
   }
 );
 
-/** Contrato inicial do payload enviado ao webhook n8n (ajuste o fluxo para ler estes campos). */
+/** Contrato do payload enviado ao webhook n8n. Memory Postgres: use memorySessionKey no sessionKey. */
 function buildAgenteN8nPayload(req) {
   const mensagem = String(req.body?.mensagem ?? req.body?.message ?? "").trim();
   const sessionIdRaw = req.body?.sessionId;
   const sessionId =
     sessionIdRaw != null && String(sessionIdRaw).trim()
-      ? String(sessionIdRaw).trim()
-      : `lab-${req.user?.sub ?? "anon"}-${Date.now()}`;
+      ? String(sessionIdRaw).trim().slice(0, 128)
+      : randomUUID();
+
+  const userId = req.user?.sub != null ? String(req.user.sub) : null;
+  const memorySessionKey =
+    userId != null ? `${userId}:${sessionId}` : sessionId;
 
   const metadata =
     req.body?.metadata != null && typeof req.body.metadata === "object"
@@ -374,7 +379,8 @@ function buildAgenteN8nPayload(req) {
   return {
     mensagem,
     sessionId,
-    userId: req.user?.sub ?? null,
+    memorySessionKey,
+    userId,
     userEmail: req.user?.email ?? null,
     role: req.user?.role ?? null,
     ...(metadata ? { metadata } : {}),
@@ -396,11 +402,16 @@ router.get(
         : "Defina N8N_AGENTE_VIGILANCIA_WEBHOOK_URL no backend.",
       payloadFields: [
         "mensagem (obrigatorio)",
-        "sessionId (opcional; gera automaticamente se vazio)",
+        "sessionId (opcional; UUID v4 se vazio — reutilize o mesmo para multi-turn)",
         "metadata (opcional, objeto)",
         "contextoPainel (opcional; mesmo formato do assistente interno)"
       ],
-      injectedByServer: ["userId", "userEmail", "role"]
+      injectedByServer: [
+        "userId",
+        "userEmail",
+        "role",
+        "memorySessionKey (userId:sessionId — usar no Postgres Chat Memory do n8n)"
+      ]
     });
   }
 );

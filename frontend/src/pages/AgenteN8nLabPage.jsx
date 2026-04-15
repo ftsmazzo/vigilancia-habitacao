@@ -138,12 +138,17 @@ export function AgenteN8nLabPage({ usuario }) {
             />
           </label>
           <label>
-            sessionId <span className="muted">(opcional — vazio gera um id de laboratório)</span>
+            sessionId{" "}
+            <span className="muted">
+              (opcional — vazio o servidor gera UUID; reutilize o mesmo valor para continuar a mesma
+              conversa; o payload inclui <code className="inline-code">memorySessionKey</code> =
+              userId:sessionId para a Memory no n8n)
+            </span>
             <input
               type="text"
               value={sessionId}
               onChange={(e) => setSessionId(e.target.value)}
-              placeholder="ex.: sessao-teste-1"
+              placeholder="Deixe vazio para nova conversa, ou cole o sessionId da resposta anterior"
               disabled={enviando || !webhookOk}
             />
           </label>
