@@ -1,0 +1,83 @@
+{
+  "mensagem": "Correlacione familias com Bolsa Familia no Cadastro Unico municipal com o indicador B.2 do recorte RMA CRAS 2025 (visao anual) e comente em uma frase se as ordens de grandeza parecem coerentes (lembrando que RMA e producao mensal agregada e CADU e estoque).",
+  "contextoPainel": {
+    "notasLivres": "Payload de laboratorio: numeros do overview sao ilustrativos para teste do agente n8n. Formato igual ao enviado pelo painel (recorteRma + overview GET /rma/overview?ano=2025&mes=TODOS).",
+    "recorteRma": {
+      "tipo": "rma-cras",
+      "titulo": "RMA CRAS",
+      "filtros": {
+        "ano": 2025,
+        "mes": "TODOS",
+        "idCras": null,
+        "unidade": null
+      },
+      "overview": {
+        "agregacao": "ano",
+        "filtroIdCras": null,
+        "periodo": {
+          "ano": 2025,
+          "mes": null,
+          "mesReferencia": null,
+          "mesReferenciaInicio": "2025-01-01T00:00:00.000Z",
+          "mesReferenciaFim": "2025-12-31T23:59:59.999Z"
+        },
+        "quantidadeCras": 9,
+        "totaisMunicipio": {
+          "a1": 118200,
+          "a2": 2040,
+          "b1": 7650,
+          "b2": 175800,
+          "b3": 412,
+          "b4": 0,
+          "b5": 0,
+          "b6": 0,
+          "c1": 88650,
+          "c2": 10230,
+          "c3": 8940,
+          "c4": 2100,
+          "c5": 4800,
+          "c6": 40120,
+          "c7": 3200,
+          "c8": 1500,
+          "c9": 890,
+          "d1": 14200,
+          "d2": 3800,
+          "d3": 0,
+          "d4": 0,
+          "d5": 0,
+          "d6": 0,
+          "d7": 0,
+          "d8": 0
+        },
+        "derivados": {
+          "encaminhamentosCadUnicoTotal": 19170,
+          "razaoEncaminhamentosCadUnicoSobreAcompanhamentoPAIF": 0.1622,
+          "mediaAtendimentosIndividualizadosPorCras": 9850
+        },
+        "porCras": [
+          {
+            "idCras": "35000000000000000001",
+            "nomeUnidade": "CRAS 1 Centro",
+            "municipio": "Ribeirao Preto",
+            "nomeExibicao": "CRAS 1 Centro",
+            "a1": 15200,
+            "b2": 22100,
+            "c1": 10200,
+            "c6": 5200
+          },
+          {
+            "idCras": "35000000000000000002",
+            "nomeUnidade": "CRAS 2",
+            "municipio": "Ribeirao Preto",
+            "nomeExibicao": "CRAS 2",
+            "a1": 13100,
+            "b2": 19800,
+            "c1": 9800,
+            "c6": 4800
+          }
+        ],
+        "aviso": "Visao anual: valores somados mes a mes. Indicadores de estoque (ex.: A.1) nao representam saldo unico; use o mes para esse tipo de leitura."
+      }
+    }
+  }
+}
