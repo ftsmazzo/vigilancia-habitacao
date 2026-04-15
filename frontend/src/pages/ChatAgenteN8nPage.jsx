@@ -66,25 +66,39 @@ function unwrapN8nAssistantPayload(j, depth = 0) {
   return null;
 }
 
+/** Deixa a resposta mais parecida com mensagem humana (remove markdown estrutural comum). */
+function humanizeCaduiaReplyText(text) {
+  if (text == null || typeof text !== "string") return text;
+  let t = text.replace(/\r\n/g, "\n").trim();
+  if (!t) return t;
+  t = t.replace(/^#{1,6}\s+(.+)$/gm, "$1");
+  t = t.replace(/\*\*([^*]+)\*\*/g, "$1");
+  t = t.replace(/\*([^*]+)\*/g, "$1");
+  t = t.replace(/\n{3,}/g, "\n\n");
+  return t.trim();
+}
+
 function extractN8nReplyText(data) {
   const r = data?.response;
   if (r?.json != null) {
     const j = r.json;
     const unwrapped = unwrapN8nAssistantPayload(j);
-    if (unwrapped != null && String(unwrapped).trim() !== "") return unwrapped;
+    if (unwrapped != null && String(unwrapped).trim() !== "")
+      return humanizeCaduiaReplyText(String(unwrapped));
     try {
-      return JSON.stringify(j, null, 2);
+      return humanizeCaduiaReplyText(JSON.stringify(j, null, 2));
     } catch {
-      return String(j);
+      return humanizeCaduiaReplyText(String(j));
     }
   }
   if (r?.raw != null && String(r.raw).trim()) {
     const raw = String(r.raw);
     const fromRaw = unwrapN8nAssistantPayload(raw);
-    if (fromRaw != null && String(fromRaw).trim() !== "") return fromRaw;
-    return raw;
+    if (fromRaw != null && String(fromRaw).trim() !== "")
+      return humanizeCaduiaReplyText(String(fromRaw));
+    return humanizeCaduiaReplyText(raw);
   }
-  if (data?.message) return String(data.message);
+  if (data?.message) return humanizeCaduiaReplyText(String(data.message));
   return "(Sem texto na resposta.)";
 }
 
