@@ -4,6 +4,7 @@ import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { VigilanciaDashboardPage } from "./pages/VigilanciaDashboardPage.jsx";
 import { RmaPanelPage } from "./pages/RmaPanelPage.jsx";
 import { ChatAssistentePage } from "./pages/ChatAssistentePage.jsx";
+import { AgenteN8nLabPage } from "./pages/AgenteN8nLabPage.jsx";
 import { ContextoMunicipioPage } from "./pages/ContextoMunicipioPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { api } from "./services/api.js";
@@ -69,6 +70,11 @@ export default function App() {
           {usuario && isVigilancia ? <Link to="/vigilancia">Vigilancia</Link> : null}
           {usuario && podePainelRma ? <Link to="/rma">RMA</Link> : null}
           {usuario ? <Link to="/assistente">Assistente</Link> : null}
+          {usuario ? (
+            <Link to="/assistente/lab-n8n" title="Testar webhook do agente n8n">
+              Lab n8n
+            </Link>
+          ) : null}
           {usuario && podeContextoMunicipio ? (
             <Link to="/contexto-municipio">Contexto municipio</Link>
           ) : null}
@@ -135,6 +141,16 @@ export default function App() {
             element={
               usuario ? (
                 <ChatAssistentePage usuario={usuario} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/assistente/lab-n8n"
+            element={
+              usuario ? (
+                <AgenteN8nLabPage usuario={usuario} />
               ) : (
                 <Navigate to="/login" replace />
               )

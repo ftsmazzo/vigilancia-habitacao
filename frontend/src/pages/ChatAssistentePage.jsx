@@ -142,7 +142,8 @@ export function ChatAssistentePage({ usuario }) {
         <p className="muted small-margin-b">
           Respostas alinhadas ao SUAS: seus dados operacionais (quando houver) entram em conjunto com
           o acervo normativo indexado — o sistema formula automaticamente a busca nesse acervo a
-          partir do seu pedido e do contexto.
+          partir do seu pedido e do contexto.{" "}
+          <Link to="/assistente/lab-n8n">Laboratório do agente n8n</Link> (teste de webhook).
         </p>
         {usuario?.email ? (
           <p className="muted small-margin-b">

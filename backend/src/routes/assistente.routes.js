@@ -355,6 +355,144 @@ ${message}`;
   }
 );
 
+/** Contrato inicial do payload enviado ao webhook n8n (ajuste o fluxo para ler estes campos). */
+function buildAgenteN8nPayload(req) {
+  const mensagem = String(req.body?.mensagem ?? req.body?.message ?? "").trim();
+  const sessionIdRaw = req.body?.sessionId;
+  const sessionId =
+    sessionIdRaw != null && String(sessionIdRaw).trim()
+      ? String(sessionIdRaw).trim()
+      : `lab-${req.user?.sub ?? "anon"}-${Date.now()}`;
+
+  const metadata =
+    req.body?.metadata != null && typeof req.body.metadata === "object"
+      ? req.body.metadata
+      : undefined;
+
+  const contextoPainel = req.body?.contextoPainel;
+
+  return {
+    mensagem,
+    sessionId,
+    userId: req.user?.sub ?? null,
+    userEmail: req.user?.email ?? null,
+    role: req.user?.role ?? null,
+    ...(metadata ? { metadata } : {}),
+    ...(contextoPainel !== undefined ? { contextoPainel } : {})
+  };
+}
+
+router.get(
+  "/agente-n8n/status",
+  requireAuth,
+  requireRole("MASTER", "ADMIN", "HABITACAO", "VIGILANCIA"),
+  (_req, res) => {
+    const url = process.env.N8N_AGENTE_VIGILANCIA_WEBHOOK_URL?.trim();
+    return res.json({
+      ok: true,
+      webhookConfigured: Boolean(url),
+      hint: url
+        ? "Webhook configurado. Use POST /api/assistente/agente-n8n/proxy para testar."
+        : "Defina N8N_AGENTE_VIGILANCIA_WEBHOOK_URL no backend.",
+      payloadFields: [
+        "mensagem (obrigatorio)",
+        "sessionId (opcional; gera automaticamente se vazio)",
+        "metadata (opcional, objeto)",
+        "contextoPainel (opcional; mesmo formato do assistente interno)"
+      ],
+      injectedByServer: ["userId", "userEmail", "role"]
+    });
+  }
+);
+
+router.post(
+  "/agente-n8n/proxy",
+  requireAuth,
+  requireRole("MASTER", "ADMIN", "HABITACAO", "VIGILANCIA"),
+  async (req, res) => {
+    const url = process.env.N8N_AGENTE_VIGILANCIA_WEBHOOK_URL?.trim();
+    if (!url) {
+      return res.status(503).json({
+        error: true,
+        code: "N8N_WEBHOOK_NOT_CONFIGURED",
+        message:
+          "N8N_AGENTE_VIGILANCIA_WEBHOOK_URL nao definida no servidor."
+      });
+    }
+
+    const payload = buildAgenteN8nPayload(req);
+    if (!payload.mensagem) {
+      return res.status(400).json({
+        error: true,
+        code: "N8N_PROXY_MESSAGE_EMPTY",
+        message: "Informe mensagem (ou message) no corpo JSON."
+      });
+    }
+
+    const secret = process.env.N8N_AGENTE_VIGILANCIA_WEBHOOK_SECRET?.trim();
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/plain;q=0.9,*/*;q=0.8"
+    };
+    if (secret) {
+      headers.Authorization = `Bearer ${secret}`;
+    }
+
+    const timeoutMs = Math.min(
+      180000,
+      Math.max(5000, Number(process.env.N8N_AGENTE_VIGILANCIA_TIMEOUT_MS) || 120000)
+    );
+    const started = Date.now();
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
+
+    let upstreamStatus = 0;
+    let upstreamText = "";
+    try {
+      const upstream = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        signal: ac.signal
+      });
+      upstreamStatus = upstream.status;
+      upstreamText = await upstream.text();
+    } catch (e) {
+      clearTimeout(timer);
+      const aborted = e?.name === "AbortError";
+      return res.status(504).json({
+        error: true,
+        code: aborted ? "N8N_PROXY_TIMEOUT" : "N8N_PROXY_NETWORK",
+        message: aborted
+          ? `Tempo esgotado apos ${timeoutMs}ms ao chamar o webhook n8n.`
+          : e?.message || "Falha de rede ao chamar o webhook n8n.",
+        durationMs: Date.now() - started,
+        sentPayload: payload
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const durationMs = Date.now() - started;
+    let parsed = null;
+    if (upstreamText) {
+      try {
+        parsed = JSON.parse(upstreamText);
+      } catch {
+        parsed = null;
+      }
+    }
+
+    return res.status(200).json({
+      success: upstreamStatus >= 200 && upstreamStatus < 300,
+      upstreamStatus,
+      durationMs,
+      sentPayload: payload,
+      response: parsed != null ? { json: parsed } : { raw: upstreamText }
+    });
+  }
+);
+
 router.get(
   "/status",
   requireAuth,
