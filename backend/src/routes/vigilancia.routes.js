@@ -155,6 +155,65 @@ router.post(
         'REFRESH MATERIALIZED VIEW "vw_vig_pessoas";'
       );
 
+      // 3) Views normais para agente NL→SQL (sempre alinhadas às MVs após REFRESH)
+      const sqlAgenteFamilias =
+        'CREATE OR REPLACE VIEW "vw_agente_familias" AS ' +
+        "SELECT " +
+        '  f.cod_familiar_fam, ' +
+        '  f.cod_familiar_fam AS familia_id, ' +
+        '  f.dat_cadastramento_fam, ' +
+        '  f.dat_atual_fam AS data_atualizacao, ' +
+        "  f.dta_entrevista_fam, " +
+        "  f.cod_forma_coleta_fam, " +
+        "  f.nom_localidade_fam AS d_nom_localidade_fam, " +
+        "  f.num_cep_logradouro_fam, " +
+        "  f.cod_unidade_territorial_fam AS d_cod_unidade_territorial_fam, " +
+        "  f.vlr_renda_media_fam AS renda_media, " +
+        "  f.vlr_renda_total_fam AS renda_total, " +
+        "  f.marc_pbf AS d_marc_pbf, " +
+        "  f.familia_recebe_pbf, " +
+        "  f.familia_pobreza_meio_salario, " +
+        "  f.cod_familia_indigena_fam, " +
+        "  f.ind_familia_quilombola_fam, " +
+        "  f.ind_risco_scl_vlco_drts, " +
+        "  f.ind_risco_scl_inseg_alim, " +
+        '  cf."composicaoFamiliar" AS qtd_pessoas_domic, ' +
+        '  cf."municipio" AS municipio_cadunico ' +
+        'FROM "vw_vig_familias" f ' +
+        'LEFT JOIN "CaduFamilia" cf ON cf."codFamiliarFam" = f.cod_familiar_fam;';
+
+      await prisma.$executeRawUnsafe(sqlAgenteFamilias);
+
+      const sqlAgentePessoas =
+        'CREATE OR REPLACE VIEW "vw_agente_pessoas" AS ' +
+        "SELECT " +
+        '  p.linha_id, ' +
+        "  p.cod_familiar_fam, " +
+        "  p.cod_familiar_fam AS familia_id, " +
+        "  p.nom_pessoa, " +
+        "  p.num_nis_pessoa_atual, " +
+        "  p.cpf_normalizado AS cpf, " +
+        "  p.cod_sexo_pessoa AS p_cod_sexo_pessoa, " +
+        "  p.dta_nasc_pessoa AS data_nascimento, " +
+        "  p.cod_parentesco_rf_pessoa AS p_cod_parentesco_rf_pessoa, " +
+        "  p.cod_raca_cor_pessoa AS p_cod_raca_cor_pessoa, " +
+        "  p.cod_deficiencia_memb AS p_cod_deficiencia_memb, " +
+        "  p.marc_pbf AS p_marc_pbf, " +
+        "  p.idade_anos, " +
+        "  p.tem_bpc, " +
+        "  p.tem_bpc_idoso, " +
+        "  p.tem_bpc_deficiencia, " +
+        "  f.dat_atual_fam AS familia_data_atualizacao, " +
+        "  f.familia_recebe_pbf, " +
+        "  f.vlr_renda_media_fam AS familia_renda_media_per_capita, " +
+        '  cp."recebePbfPessoa" AS recebe_pbf_pessoa, ' +
+        '  cp."recebePbfFam" AS recebe_pbf_familia_cadastro_pessoa ' +
+        'FROM "vw_vig_pessoas" p ' +
+        'LEFT JOIN "vw_vig_familias" f ON f.cod_familiar_fam = p.cod_familiar_fam ' +
+        'LEFT JOIN "CaduPessoa" cp ON cp.cpf = p.cpf_normalizado;';
+
+      await prisma.$executeRawUnsafe(sqlAgentePessoas);
+
       const fim = Date.now();
 
       await prisma.logAuditoria.create({
@@ -162,14 +221,17 @@ router.post(
           usuarioId: req.user.sub,
           acao: "REFRESH_VIEWS_VIGILANCIA",
           detalhes: {
-            duracaoMs: fim - inicio
+            duracaoMs: fim - inicio,
+            agenteViews: ["vw_agente_familias", "vw_agente_pessoas"]
           }
         }
       });
 
       return res.json({
         ok: true,
-        duracaoMs: fim - inicio
+        duracaoMs: fim - inicio,
+        viewsAgente: ["vw_agente_familias", "vw_agente_pessoas"],
+        schema: "public"
       });
     } catch (error) {
       console.error("Erro ao atualizar views de vigilancia:", error);

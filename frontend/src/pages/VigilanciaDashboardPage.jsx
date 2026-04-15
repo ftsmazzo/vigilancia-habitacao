@@ -396,8 +396,10 @@ export function VigilanciaDashboardPage({ usuario }) {
             <section className="card">
               <h3>Base de Vigilancia (familias e pessoas)</h3>
               <p className="muted">
-                Sempre que uma nova base CADU ou BPC for importada, atualize as estruturas de vigilancia para refletir os dados
-                mais recentes.
+                Sempre que uma nova base CADU ou BPC for importada, atualize as estruturas de vigilancia. Isso atualiza as
+                materializadas <strong>vw_vig_familias</strong> e <strong>vw_vig_pessoas</strong> e recria as views do agente
+                NL→SQL <strong>vw_agente_familias</strong> e <strong>vw_agente_pessoas</strong> (schema <strong>public</strong>
+                ), com BPC nas pessoas e Bolsa Familia cruzada (familia + cadastro individual).
               </p>
               <button
                 type="button"
@@ -409,10 +411,11 @@ export function VigilanciaDashboardPage({ usuario }) {
                   try {
                     const { data } = await api.post("/vigilancia/atualizar-bases");
                     const duracaoSeg = data?.duracaoMs ? Math.round(data.duracaoMs / 1000) : null;
+                    const extras = Array.isArray(data?.viewsAgente) ? data.viewsAgente.join(", ") : "";
                     setMensagem(
                       duracaoSeg !== null
-                        ? `Bases de vigilancia atualizadas com sucesso em ${duracaoSeg} segundos.`
-                        : "Bases de vigilancia atualizadas com sucesso."
+                        ? `Bases atualizadas em ${duracaoSeg}s.${extras ? ` Views agente: ${extras}.` : ""}`
+                        : `Bases atualizadas com sucesso.${extras ? ` Views agente: ${extras}.` : ""}`
                     );
                   } catch (_error) {
                     setErro("Falha ao atualizar as bases de vigilancia.");
