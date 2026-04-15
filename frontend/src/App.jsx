@@ -4,7 +4,7 @@ import { DashboardPage } from "./pages/DashboardPage.jsx";
 import { VigilanciaDashboardPage } from "./pages/VigilanciaDashboardPage.jsx";
 import { RmaPanelPage } from "./pages/RmaPanelPage.jsx";
 import { ChatAssistentePage } from "./pages/ChatAssistentePage.jsx";
-import { AgenteN8nLabPage } from "./pages/AgenteN8nLabPage.jsx";
+import { ChatAgenteN8nPage } from "./pages/ChatAgenteN8nPage.jsx";
 import { ContextoMunicipioPage } from "./pages/ContextoMunicipioPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { api } from "./services/api.js";
@@ -71,8 +71,8 @@ export default function App() {
           {usuario && podePainelRma ? <Link to="/rma">RMA</Link> : null}
           {usuario ? <Link to="/assistente">Assistente</Link> : null}
           {usuario ? (
-            <Link to="/assistente/lab-n8n" title="Testar webhook do agente n8n">
-              Lab n8n
+            <Link to="/assistente/n8n" title="CaduIA (agente n8n)">
+              CaduIA
             </Link>
           ) : null}
           {usuario && podeContextoMunicipio ? (
@@ -147,15 +147,16 @@ export default function App() {
             }
           />
           <Route
-            path="/assistente/lab-n8n"
+            path="/assistente/n8n"
             element={
               usuario ? (
-                <AgenteN8nLabPage usuario={usuario} />
+                <ChatAgenteN8nPage usuario={usuario} />
               ) : (
                 <Navigate to="/login" replace />
               )
             }
           />
+          <Route path="/assistente/lab-n8n" element={<Navigate to="/assistente/n8n" replace />} />
           <Route
             path="/contexto-municipio"
             element={

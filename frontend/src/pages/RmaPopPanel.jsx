@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api.js";
-import { setAssistenteContextoRma } from "../utils/assistenteContextStorage.js";
+import {
+  setAssistenteContextoRma,
+  setAssistenteContextoRmaN8n
+} from "../utils/assistenteContextStorage.js";
 
 const KPI_PRINCIPAL = [
   { key: "a1", label: "Pessoas em situacao de rua atendidas (A.1)" },
@@ -326,6 +329,26 @@ export function RmaPopPanel({ usuario }) {
                 }}
               >
                 Enviar recorte ao assistente
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  setAssistenteContextoRmaN8n({
+                    tipo: "rma-pop",
+                    titulo: "RMA Centro POP",
+                    filtros: {
+                      ano,
+                      mes,
+                      idUnidade: idUnidadeFiltro || null,
+                      unidade: nomeUnidadeFiltro || null
+                    },
+                    overview
+                  });
+                  navigate("/assistente/n8n");
+                }}
+              >
+                Enviar recorte ao CaduIA
               </button>
               <p className="muted small-margin-b rma-pdf-hint">
                 Usa o ano, mes e unidade selecionados acima. O PDF inclui apenas totais numericos

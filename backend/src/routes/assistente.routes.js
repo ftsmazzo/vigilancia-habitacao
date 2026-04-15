@@ -12,8 +12,58 @@ import {
   formatMunicipioPerfilForPrompt,
   resumoMunicipioParaRag
 } from "../services/municipioPerfil.service.js";
+import { prisma } from "../utils/prisma.js";
 
 const router = Router();
+
+async function loadRmaCrasIndicadoresLegenda() {
+  return prisma.rmaIndicadorDef.findMany({
+    orderBy: [{ ordem: "asc" }]
+  });
+}
+
+function buildRmaRecorteGuiaParaIALegenda(defs) {
+  if (!defs?.length) {
+    return "(Legenda de indicadores RMA ainda nao cadastrada no banco — interprete os codigos a1…d8 apenas como metricas da matriz oficial RMA CRAS.)";
+  }
+  return defs
+    .map((r) => {
+      const g = r.grupo ? ` | grupo: ${r.grupo}` : "";
+      return `- **${r.codigo}** — ${r.rotulo}${g}`;
+    })
+    .join("\n");
+}
+
+function buildRmaRecorteGuiaParaIA(defs) {
+  const estrutura = `### Estrutura do recorte RMA (contextoPainel.recorteRma)
+
+Este bloco explica os campos enviados junto com os numeros do painel RMA CRAS.
+
+**recorteRma.tipo / titulo** — Origem do recorte (ex.: rma-cras / RMA CRAS).
+
+**recorteRma.filtros**
+- **ano**: ano de referencia.
+- **mes**: mes (1-12) ou a string **TODOS** quando a visao e **anual agregada** (soma dos meses do ano).
+- **idCras** / **unidade**: se preenchidos, o recorte esta **restrito** a essa unidade; se nulos, **municipio inteiro** no periodo.
+
+**recorteRma.overview** — Dados alinhados ao overview RMA:
+- **agregacao**: "mes" (um mes) ou "ano" (todos os meses do ano somados — fluxos de **producao** mensal agregados).
+- **periodo**: ano, mes (se houver), limites de datas.
+- **quantidadeCras**: quantas unidades entram no recorte.
+- **totaisMunicipio**: objeto com chaves **a1…d8** — indicadores da matriz RMA no periodo. Cada chave corresponde a um indicador (ver legenda abaixo).
+- **derivados**: indicadores **calculados** (ex.: encaminhamentos CadUnico C.2+C.3, razoes, medias por CRAS).
+- **porCras**: mesmas metricas **por unidade** (idCras, nome, valores a1…d8 por CRAS).
+- **aviso**: alertas de leitura (ex.: indicadores de **estoque** que nao devem ser interpretados como soma anual).
+
+**contextoPainel.notasLivres** — Observacoes digitadas pelo usuario no chat.
+
+Use esta estrutura para interpretar o JSON; nao confunda producao RMA agregada no ano com **estoque** do Cadastro Unico salvo quando o aviso alertar.
+
+`;
+
+  const legenda = buildRmaRecorteGuiaParaIALegenda(defs);
+  return `${estrutura}\n### Legenda dos codigos da matriz (RMA CRAS)\n\n${legenda}`;
+}
 
 const SYSTEM_PROMPT = `Voce e uma assistente social de formacao tecnica e aprofundada no SUAS (Sistema Unico de Assistencia Social) e na vigilancia socioassistencial no Brasil. Fala com colegas de rede, gestores e equipes de territorio: tom acolhedor, claro e profissional — como em uma conversa de trabalho bem fundamentada, nao como manual frio nem como relatorio de auditoria.
 
@@ -383,6 +433,18 @@ async function buildAgenteN8nPayload(req) {
     req.body?.omitirPerfilMunicipio === true ||
     req.body?.omitirPerfilMunicipio === "true";
 
+  let rmaRecorteGuiaParaIA = null;
+  const rr =
+    contextoPainel &&
+    typeof contextoPainel === "object" &&
+    contextoPainel.recorteRma != null
+      ? contextoPainel.recorteRma
+      : null;
+  if (rr && (rr.tipo === "rma-cras" || rr.tipo == null)) {
+    const defs = await loadRmaCrasIndicadoresLegenda();
+    rmaRecorteGuiaParaIA = buildRmaRecorteGuiaParaIA(defs);
+  }
+
   let perfilMunicipioSnapshot = null;
   let perfilMunicipioContexto = "";
   let perfilMunicipioResumo = "";
@@ -420,7 +482,8 @@ async function buildAgenteN8nPayload(req) {
         }
       : {}),
     ...(metadata ? { metadata } : {}),
-    ...(contextoPainel !== undefined ? { contextoPainel } : {})
+    ...(contextoPainel !== undefined ? { contextoPainel } : {}),
+    ...(rmaRecorteGuiaParaIA ? { rmaRecorteGuiaParaIA } : {})
   };
 }
 
@@ -450,7 +513,8 @@ router.get(
         "memorySessionKey (userId:sessionId — Postgres Chat Memory no n8n)",
         "perfilMunicipioSnapshot (nome, uf, codigoIbge, atualizadoEm — null se sem cadastro)",
         "perfilMunicipioContexto (texto longo; igual formatMunicipioPerfilForPrompt do /assistente/chat)",
-        "perfilMunicipioResumo (uma linha; util para logs ou cabecalho curto no n8n)"
+        "perfilMunicipioResumo (uma linha; util para logs ou cabecalho curto no n8n)",
+        "rmaRecorteGuiaParaIA (texto; so quando recorteRma.tipo e rma-cras — estrutura + legenda a1…d8 do banco)"
       ],
       n8nHint:
         "No Supervisor, injeta no user message ou system: o bloco perfilMunicipioContexto + mensagem + contextoPainel. Numeros cadastrais finos continuam no AgenteSQL."

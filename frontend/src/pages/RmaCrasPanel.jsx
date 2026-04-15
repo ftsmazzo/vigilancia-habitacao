@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api.js";
-import { setAssistenteContextoRma } from "../utils/assistenteContextStorage.js";
+import {
+  setAssistenteContextoRma,
+  setAssistenteContextoRmaN8n
+} from "../utils/assistenteContextStorage.js";
 
 const KPI_PRINCIPAL = [
   { key: "a1", label: "Familias em acompanhamento PAIF (A.1)" },
@@ -328,6 +331,26 @@ export function RmaCrasPanel({ usuario }) {
                 }}
               >
                 Enviar recorte ao assistente
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  setAssistenteContextoRmaN8n({
+                    tipo: "rma-cras",
+                    titulo: "RMA CRAS",
+                    filtros: {
+                      ano,
+                      mes,
+                      idCras: idCrasFiltro || null,
+                      unidade: nomeUnidadeFiltro || null
+                    },
+                    overview
+                  });
+                  navigate("/assistente/n8n");
+                }}
+              >
+                Enviar recorte ao CaduIA
               </button>
               <p className="muted small-margin-b rma-pdf-hint">
                 Usa o ano, mes e unidade selecionados acima. O PDF inclui apenas totais numericos
