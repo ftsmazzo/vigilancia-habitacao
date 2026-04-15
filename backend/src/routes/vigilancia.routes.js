@@ -46,9 +46,15 @@ router.post(
     const inicio = Date.now();
 
     try {
-      // 1) Garante criação das views (uma instrução por chamada)
+      // 0) Views do agente e MVs precisam ser recriadas quando a definição muda (IF NOT EXISTS não altera colunas)
+      await prisma.$executeRawUnsafe('DROP VIEW IF EXISTS "vw_agente_pessoas";');
+      await prisma.$executeRawUnsafe('DROP VIEW IF EXISTS "vw_agente_familias";');
+      await prisma.$executeRawUnsafe('DROP MATERIALIZED VIEW IF EXISTS "vw_vig_pessoas";');
+      await prisma.$executeRawUnsafe('DROP MATERIALIZED VIEW IF EXISTS "vw_vig_familias";');
+
+      // 1) Materialized views (uma instrução por chamada)
       const sqlCreateFamilias =
-        'CREATE MATERIALIZED VIEW IF NOT EXISTS "vw_vig_familias" AS ' +
+        'CREATE MATERIALIZED VIEW "vw_vig_familias" AS ' +
         "SELECT " +
         '  cf."codFamiliarFam" AS cod_familiar_fam, ' +
         "  NULLIF(cf.\"rawDadosTxt\"::jsonb ->> 'd.dat_cadastramento_fam', '')::date AS dat_cadastramento_fam, " +
@@ -66,6 +72,25 @@ router.post(
         "(cf.\"rawDadosTxt\"::jsonb ->> 'd.ind_familia_quilombola_fam') AS ind_familia_quilombola_fam, " +
         "(cf.\"rawDadosTxt\"::jsonb ->> 'd.ind_risco_scl_vlco_drts') AS ind_risco_scl_vlco_drts, " +
         "(cf.\"rawDadosTxt\"::jsonb ->> 'd.ind_risco_scl_inseg_alim') AS ind_risco_scl_inseg_alim, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.nom_logradouro_fam') AS nom_logradouro_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.num_logradouro_fam') AS num_logradouro_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.dsc_complemento_fam') AS dsc_complemento_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.dsc_ponto_referencia_fam') AS dsc_ponto_referencia_fam, " +
+        "(NULLIF(cf.\"rawDadosTxt\"::jsonb ->> 'd.qtd_pessoas_domic_fam', ''))::int AS qtd_pessoas_domic_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_especie_domic_fam') AS cod_especie_domic_fam, " +
+        "(NULLIF(cf.\"rawDadosTxt\"::jsonb ->> 'd.qtd_comodos_domic_fam', ''))::int AS qtd_comodos_domic_fam, " +
+        "(NULLIF(cf.\"rawDadosTxt\"::jsonb ->> 'd.qtd_comodos_dormitorio_fam', ''))::int AS qtd_comodos_dormitorio_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_material_piso_fam') AS cod_material_piso_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_material_domic_fam') AS cod_material_domic_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_agua_canalizada_fam') AS cod_agua_canalizada_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_abaste_agua_domic_fam') AS cod_abaste_agua_domic_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_banheiro_domic_fam') AS cod_banheiro_domic_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.ref_cad') AS ref_cad, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.cod_ibge_munic_fam') AS cod_ibge_munic_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.sgl_uf_fam') AS sgl_uf_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.num_ddd_telefone_1_fam') AS num_ddd_telefone_1_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.num_telefone_1_fam') AS num_telefone_1_fam, " +
+        "(cf.\"rawDadosTxt\"::jsonb ->> 'd.nom_tip_logradouro_fam') AS nom_tip_logradouro_fam, " +
         "CASE " +
         '  WHEN cf."rendaPerCapitaFam" IS NOT NULL AND cf."rendaPerCapitaFam" <= 810.5 THEN TRUE ' +
         "  ELSE FALSE " +
@@ -75,7 +100,7 @@ router.post(
       await prisma.$executeRawUnsafe(sqlCreateFamilias);
 
       const sqlCreatePessoas =
-        'CREATE MATERIALIZED VIEW IF NOT EXISTS "vw_vig_pessoas" AS ' +
+        'CREATE MATERIALIZED VIEW "vw_vig_pessoas" AS ' +
         "SELECT " +
         "  crl.id AS linha_id, " +
         "(crl.\"dadosTxt\"::jsonb ->> 'p.cod_familiar_fam') AS cod_familiar_fam, " +
@@ -102,6 +127,19 @@ router.post(
         "(crl.\"dadosTxt\"::jsonb ->> 'p.ind_def_transtorno_mental_memb') AS ind_def_transtorno_mental_memb, " +
         "(crl.\"dadosTxt\"::jsonb ->> 'p.ind_frequenta_escola_memb') AS ind_frequenta_escola_memb, " +
         "(crl.\"dadosTxt\"::jsonb ->> 'p.grau_instrucao') AS grau_instrucao, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.ind_alfabetizado_memb') AS ind_alfabetizado_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.cod_curso_freq_escola_memb') AS cod_curso_freq_escola_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.ind_freq_escola_memb') AS ind_freq_escola_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.ind_remuner_mensal_memb') AS ind_remuner_mensal_memb, " +
+        "(NULLIF(crl.\"dadosTxt\"::jsonb ->> 'p.val_remuner_emprego_memb', ''))::numeric AS val_remuner_emprego_memb, " +
+        "(NULLIF(crl.\"dadosTxt\"::jsonb ->> 'p.val_renda_bruta_12_memb', ''))::numeric AS val_renda_bruta_12_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.ind_ajuda_familiar_memb') AS ind_ajuda_familiar_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.ind_domiciliado_memb') AS ind_domiciliado_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.ind_fam_relacao_dep_memb') AS ind_fam_relacao_dep_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.cod_area_residencia_memb') AS cod_area_residencia_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.cod_trabalhou_memb') AS cod_trabalhou_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.cod_atividade_trab_memb') AS cod_atividade_trab_memb, " +
+        "(crl.\"dadosTxt\"::jsonb ->> 'p.cod_funcao_trabalho_memb') AS cod_funcao_trabalho_memb, " +
         "LPAD( " +
         "  REGEXP_REPLACE(crl.\"dadosTxt\"::jsonb ->> 'p.num_cpf_pessoa', '\\\\D', '', 'g'), " +
         "  11, " +
@@ -133,6 +171,15 @@ router.post(
         "  ) " +
         "  AND b.\"tipo\" = 'DEFICIENTE' " +
         ") AS tem_bpc_deficiencia, " +
+        "(SELECT b.\"tipo\"::text FROM \"BpcBeneficio\" b WHERE b.cpf = LPAD( " +
+        "    REGEXP_REPLACE(crl.\"dadosTxt\"::jsonb ->> 'p.num_cpf_pessoa', '\\\\D', '', 'g'), " +
+        "    11, '0') ORDER BY b.\"atualizadoEm\" DESC NULLS LAST LIMIT 1) AS bpc_tipo, " +
+        "(SELECT b.\"especieBeneficio\" FROM \"BpcBeneficio\" b WHERE b.cpf = LPAD( " +
+        "    REGEXP_REPLACE(crl.\"dadosTxt\"::jsonb ->> 'p.num_cpf_pessoa', '\\\\D', '', 'g'), " +
+        "    11, '0') ORDER BY b.\"atualizadoEm\" DESC NULLS LAST LIMIT 1) AS bpc_especie_beneficio, " +
+        "(SELECT b.\"situacao\" FROM \"BpcBeneficio\" b WHERE b.cpf = LPAD( " +
+        "    REGEXP_REPLACE(crl.\"dadosTxt\"::jsonb ->> 'p.num_cpf_pessoa', '\\\\D', '', 'g'), " +
+        "    11, '0') ORDER BY b.\"atualizadoEm\" DESC NULLS LAST LIMIT 1) AS bpc_situacao, " +
         "CASE " +
         "  WHEN NULLIF(crl.\"dadosTxt\"::jsonb ->> 'p.dta_nasc_pessoa', '') IS NULL " +
         "    THEN NULL " +
@@ -159,26 +206,20 @@ router.post(
       const sqlAgenteFamilias =
         'CREATE OR REPLACE VIEW "vw_agente_familias" AS ' +
         "SELECT " +
-        '  f.cod_familiar_fam, ' +
-        '  f.cod_familiar_fam AS familia_id, ' +
-        '  f.dat_cadastramento_fam, ' +
-        '  f.dat_atual_fam AS data_atualizacao, ' +
-        "  f.dta_entrevista_fam, " +
-        "  f.cod_forma_coleta_fam, " +
+        "  f.*, " +
+        "  f.cod_familiar_fam AS familia_id, " +
+        "  f.dat_atual_fam AS data_atualizacao, " +
         "  f.nom_localidade_fam AS d_nom_localidade_fam, " +
-        "  f.num_cep_logradouro_fam, " +
         "  f.cod_unidade_territorial_fam AS d_cod_unidade_territorial_fam, " +
         "  f.vlr_renda_media_fam AS renda_media, " +
         "  f.vlr_renda_total_fam AS renda_total, " +
         "  f.marc_pbf AS d_marc_pbf, " +
-        "  f.familia_recebe_pbf, " +
-        "  f.familia_pobreza_meio_salario, " +
-        "  f.cod_familia_indigena_fam, " +
-        "  f.ind_familia_quilombola_fam, " +
-        "  f.ind_risco_scl_vlco_drts, " +
-        "  f.ind_risco_scl_inseg_alim, " +
-        '  cf."composicaoFamiliar" AS qtd_pessoas_domic, ' +
-        '  cf."municipio" AS municipio_cadunico ' +
+        '  cf."composicaoFamiliar" AS composicao_familiar_tabela, ' +
+        '  cf."municipio" AS municipio_tabela, ' +
+        '  cf."rendaPerCapitaFam" AS renda_per_capita_tabela, ' +
+        '  cf."recebePbfFam" AS recebe_pbf_familia_tabela, ' +
+        '  cf."endereco" AS endereco_tabela, ' +
+        '  cf."dataAtualFam" AS data_atual_fam_tabela ' +
         'FROM "vw_vig_familias" f ' +
         'LEFT JOIN "CaduFamilia" cf ON cf."codFamiliarFam" = f.cod_familiar_fam;';
 
@@ -187,11 +228,8 @@ router.post(
       const sqlAgentePessoas =
         'CREATE OR REPLACE VIEW "vw_agente_pessoas" AS ' +
         "SELECT " +
-        '  p.linha_id, ' +
-        "  p.cod_familiar_fam, " +
+        "  p.*, " +
         "  p.cod_familiar_fam AS familia_id, " +
-        "  p.nom_pessoa, " +
-        "  p.num_nis_pessoa_atual, " +
         "  p.cpf_normalizado AS cpf, " +
         "  p.cod_sexo_pessoa AS p_cod_sexo_pessoa, " +
         "  p.dta_nasc_pessoa AS data_nascimento, " +
@@ -199,15 +237,22 @@ router.post(
         "  p.cod_raca_cor_pessoa AS p_cod_raca_cor_pessoa, " +
         "  p.cod_deficiencia_memb AS p_cod_deficiencia_memb, " +
         "  p.marc_pbf AS p_marc_pbf, " +
-        "  p.idade_anos, " +
-        "  p.tem_bpc, " +
-        "  p.tem_bpc_idoso, " +
-        "  p.tem_bpc_deficiencia, " +
         "  f.dat_atual_fam AS familia_data_atualizacao, " +
         "  f.familia_recebe_pbf, " +
         "  f.vlr_renda_media_fam AS familia_renda_media_per_capita, " +
+        "  f.nom_localidade_fam AS familia_nom_localidade, " +
+        "  f.cod_unidade_territorial_fam AS familia_cod_unidade_territorial, " +
+        "  f.qtd_pessoas_domic_fam AS familia_qtd_pessoas_domicilio, " +
+        "  f.nom_logradouro_fam AS familia_nom_logradouro, " +
+        "  f.cod_especie_domic_fam AS familia_cod_especie_domicilio, " +
+        '  cp."nomePessoa" AS nome_pessoa_tabela, ' +
+        '  cp."nisPessoa" AS nis_tabela, ' +
+        '  cp."dataNascimento" AS data_nascimento_tabela, ' +
+        '  cp."sexo" AS sexo_tabela, ' +
+        '  cp."codFamiliarFam" AS cod_familiar_fam_tabela_pessoa, ' +
         '  cp."recebePbfPessoa" AS recebe_pbf_pessoa, ' +
-        '  cp."recebePbfFam" AS recebe_pbf_familia_cadastro_pessoa ' +
+        '  cp."recebePbfFam" AS recebe_pbf_familia_cadastro_pessoa, ' +
+        '  cp."rendaPerCapitaFam" AS renda_per_capita_familia_cadastro_pessoa ' +
         'FROM "vw_vig_pessoas" p ' +
         'LEFT JOIN "vw_vig_familias" f ON f.cod_familiar_fam = p.cod_familiar_fam ' +
         'LEFT JOIN "CaduPessoa" cp ON cp.cpf = p.cpf_normalizado;';
