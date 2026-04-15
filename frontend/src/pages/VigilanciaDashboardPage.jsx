@@ -389,8 +389,6 @@ export function VigilanciaDashboardPage({ usuario }) {
               <p className="muted">
                 Operacoes de manutencao das views e estruturas de vigilancia. Use apenas apos importar novas bases CADU e BPC.
               </p>
-              {mensagem ? <p className="success-text">{mensagem}</p> : null}
-              {erro ? <p className="error-text">{erro}</p> : null}
             </section>
 
             <section className="card">
@@ -399,7 +397,8 @@ export function VigilanciaDashboardPage({ usuario }) {
                 Sempre que uma nova base CADU ou BPC for importada, atualize as estruturas de vigilancia. Isso atualiza as
                 materializadas <strong>vw_vig_familias</strong> e <strong>vw_vig_pessoas</strong> e recria as views do agente
                 NL→SQL <strong>vw_agente_familias</strong> e <strong>vw_agente_pessoas</strong> (schema <strong>public</strong>
-                ), com BPC nas pessoas e Bolsa Familia cruzada (familia + cadastro individual).
+                ), com BPC nas pessoas e Bolsa Familia cruzada (familia + cadastro individual). Em bases grandes pode levar
+                varios minutos.
               </p>
               <button
                 type="button"
@@ -409,7 +408,9 @@ export function VigilanciaDashboardPage({ usuario }) {
                   setMensagem("");
                   setAtualizandoBases(true);
                   try {
-                    const { data } = await api.post("/vigilancia/atualizar-bases");
+                    const { data } = await api.post("/vigilancia/atualizar-bases", null, {
+                      timeout: 20 * 60 * 1000
+                    });
                     const duracaoSeg = data?.duracaoMs ? Math.round(data.duracaoMs / 1000) : null;
                     const extras = Array.isArray(data?.viewsAgente) ? data.viewsAgente.join(", ") : "";
                     setMensagem(
@@ -417,8 +418,14 @@ export function VigilanciaDashboardPage({ usuario }) {
                         ? `Bases atualizadas em ${duracaoSeg}s.${extras ? ` Views agente: ${extras}.` : ""}`
                         : `Bases atualizadas com sucesso.${extras ? ` Views agente: ${extras}.` : ""}`
                     );
-                  } catch (_error) {
-                    setErro("Falha ao atualizar as bases de vigilancia.");
+                  } catch (error) {
+                    const backendMessage = error?.response?.data?.message;
+                    const isTimeout = error?.code === "ECONNABORTED";
+                    setErro(
+                      isTimeout
+                        ? "Tempo esgotado (20 min). O servidor pode ainda estar processando — verifique os logs ou tente de novo."
+                        : backendMessage || "Falha ao atualizar as bases de vigilancia."
+                    );
                   } finally {
                     setAtualizandoBases(false);
                   }
@@ -426,6 +433,13 @@ export function VigilanciaDashboardPage({ usuario }) {
               >
                 {atualizandoBases ? "Atualizando bases..." : "Atualizar bases de vigilancia"}
               </button>
+              {atualizandoBases ? (
+                <p className="muted" style={{ marginTop: "0.75rem" }}>
+                  Aguarde: refresh das materialized views pode demorar.
+                </p>
+              ) : null}
+              {mensagem ? <p className="success-text" style={{ marginTop: "0.75rem" }}>{mensagem}</p> : null}
+              {erro ? <p className="error-text" style={{ marginTop: "0.75rem" }}>{erro}</p> : null}
             </section>
           </>
         ) : null}

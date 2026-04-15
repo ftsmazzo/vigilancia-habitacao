@@ -64,6 +64,8 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
   const [caduStatus, setCaduStatus] = useState(null);
   const [bpcStatus, setBpcStatus] = useState(null);
   const [exportandoRelatorio, setExportandoRelatorio] = useState(false);
+  const [atualizandoBasesVigilancia, setAtualizandoBasesVigilancia] = useState(false);
+  const [feedbackBasesVigilancia, setFeedbackBasesVigilancia] = useState({ tipo: null, texto: "" });
   const [relatorioFiltros, setRelatorioFiltros] = useState({
     empreendimentoId: "",
     statusVigilancia: "TODOS",
@@ -820,29 +822,58 @@ export function DashboardPage({ usuario, onUsuarioAtualizado }) {
               <p className="muted">
                 Apos importar novas bases CADU e BPC, atualize as materializadas de vigilancia e as views{" "}
                 <strong>vw_agente_familias</strong> / <strong>vw_agente_pessoas</strong> (para consultas NL→SQL no mesmo banco,
-                com BPC e PBF alinhados ao sistema).
+                com BPC e PBF alinhados ao sistema). Pode levar varios minutos em bases grandes.
               </p>
               <button
                 type="button"
+                disabled={atualizandoBasesVigilancia}
                 onClick={async () => {
                   setErro("");
                   setMensagem("");
+                  setFeedbackBasesVigilancia({ tipo: null, texto: "" });
+                  setAtualizandoBasesVigilancia(true);
                   try {
-                    const { data } = await api.post("/vigilancia/atualizar-bases");
+                    const { data } = await api.post("/vigilancia/atualizar-bases", null, {
+                      timeout: 20 * 60 * 1000
+                    });
                     const duracaoSeg = data?.duracaoMs ? Math.round(data.duracaoMs / 1000) : null;
                     const extras = Array.isArray(data?.viewsAgente) ? data.viewsAgente.join(", ") : "";
-                    setMensagem(
+                    const texto =
                       duracaoSeg !== null
                         ? `Bases atualizadas em ${duracaoSeg}s.${extras ? ` Views agente: ${extras}.` : ""}`
-                        : `Bases atualizadas.${extras ? ` Views agente: ${extras}.` : ""}`
-                    );
-                  } catch (_error) {
-                    setErro("Falha ao atualizar as bases de vigilancia.");
+                        : `Bases atualizadas.${extras ? ` Views agente: ${extras}.` : ""}`;
+                    setMensagem(texto);
+                    setFeedbackBasesVigilancia({ tipo: "ok", texto });
+                  } catch (error) {
+                    const backendMessage = error?.response?.data?.message;
+                    const isTimeout = error?.code === "ECONNABORTED";
+                    const texto = isTimeout
+                      ? "Tempo esgotado (20 min). O servidor pode ainda estar processando — verifique os logs ou tente de novo."
+                      : backendMessage || "Falha ao atualizar as bases de vigilancia.";
+                    setErro(texto);
+                    setFeedbackBasesVigilancia({ tipo: "erro", texto });
+                  } finally {
+                    setAtualizandoBasesVigilancia(false);
                   }
                 }}
               >
-                Atualizar bases de vigilancia
+                {atualizandoBasesVigilancia ? "Atualizando bases..." : "Atualizar bases de vigilancia"}
               </button>
+              {atualizandoBasesVigilancia ? (
+                <p className="muted" style={{ marginTop: "0.75rem" }}>
+                  Aguarde: refresh das materialized views pode demorar.
+                </p>
+              ) : null}
+              {feedbackBasesVigilancia.tipo === "ok" ? (
+                <p className="success-text" style={{ marginTop: "0.75rem" }}>
+                  {feedbackBasesVigilancia.texto}
+                </p>
+              ) : null}
+              {feedbackBasesVigilancia.tipo === "erro" ? (
+                <p className="error-text" style={{ marginTop: "0.75rem" }}>
+                  {feedbackBasesVigilancia.texto}
+                </p>
+              ) : null}
             </section>
 
             <section className="card">
