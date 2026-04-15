@@ -9,7 +9,7 @@ import {
 import { resolveOpenAiModel } from "../utils/openaiModel.js";
 import {
   getMunicipioPerfilAtivo,
-  formatMunicipioPerfilForPrompt,
+  formatMunicipioPerfilParaAgente,
   resumoMunicipioParaRag
 } from "../services/municipioPerfil.service.js";
 import { prisma } from "../utils/prisma.js";
@@ -147,8 +147,17 @@ function formatContextoPainel(contextoPainel) {
 }
 
 /** Resumo curto para o modelo que formula a consulta ao RAG (sem repetir tabelas). */
-function buildHintForRagQuery(contextoPainel, perfilMunicipio) {
-  const linhaMun = perfilMunicipio ? resumoMunicipioParaRag(perfilMunicipio) : "";
+function buildHintForRagQuery(
+  contextoPainel,
+  perfilMunicipio,
+  linhaMunicipioAoVivo = null
+) {
+  const linhaMun =
+    linhaMunicipioAoVivo != null && String(linhaMunicipioAoVivo).trim()
+      ? String(linhaMunicipioAoVivo).trim()
+      : perfilMunicipio
+        ? resumoMunicipioParaRag(perfilMunicipio)
+        : "";
   if (!contextoPainel || typeof contextoPainel !== "object") {
     return linhaMun || "(Sem resumo de contexto operacional.)";
   }
@@ -180,8 +189,17 @@ function buildHintForRagQuery(contextoPainel, perfilMunicipio) {
   return partes.length ? partes.join(" ") : "(Sem resumo de contexto operacional.)";
 }
 
-async function gerarConsultaRag({ message, contextoPainel, perfilMunicipio }) {
-  const hint = buildHintForRagQuery(contextoPainel, perfilMunicipio);
+async function gerarConsultaRag({
+  message,
+  contextoPainel,
+  perfilMunicipio,
+  linhaMunicipioAoVivo = null
+}) {
+  const hint = buildHintForRagQuery(
+    contextoPainel,
+    perfilMunicipio,
+    linhaMunicipioAoVivo
+  );
   try {
     const { text } = await openaiChatCompletions(
       [
@@ -306,6 +324,8 @@ router.post(
     );
 
     const perfilMunicipio = await getMunicipioPerfilAtivo();
+    const { perfilMunicipioContexto, perfilMunicipioResumo } =
+      await formatMunicipioPerfilParaAgente(perfilMunicipio);
 
     let ragBodyParaCliente = null;
     let ragErro = null;
@@ -317,7 +337,8 @@ router.post(
         ragQueryUsada = await gerarConsultaRag({
           message,
           contextoPainel,
-          perfilMunicipio
+          perfilMunicipio,
+          linhaMunicipioAoVivo: perfilMunicipioResumo
         });
       } catch (e) {
         ragQueryUsada = message.slice(0, 8000);
@@ -347,7 +368,7 @@ router.post(
       blocoRag = `(Base normativa indisponivel nesta rodada: ${ragErro || "sem dados"}. Responda com ressalva; nao simule citacoes de norma.)`;
     }
 
-    const blocoPerfil = formatMunicipioPerfilForPrompt(perfilMunicipio);
+    const blocoPerfil = perfilMunicipioContexto;
 
     const userContent = `Use o material abaixo como apoio interno; responda ao pedido de forma natural, sem mencionar estas secoes nem citar "fontes" ou "trechos" ao usuario.
 
@@ -459,11 +480,13 @@ async function buildAgenteN8nPayload(req) {
         codigoIbge: perfil.codigoIbge,
         atualizadoEm: perfil.atualizadoEm?.toISOString?.() ?? null
       };
-      perfilMunicipioContexto = formatMunicipioPerfilForPrompt(perfil);
-      perfilMunicipioResumo = resumoMunicipioParaRag(perfil);
+      const montado = await formatMunicipioPerfilParaAgente(perfil);
+      perfilMunicipioContexto = montado.perfilMunicipioContexto;
+      perfilMunicipioResumo = montado.perfilMunicipioResumo;
     } else {
-      perfilMunicipioContexto = formatMunicipioPerfilForPrompt(null);
-      perfilMunicipioResumo = resumoMunicipioParaRag(null);
+      const montado = await formatMunicipioPerfilParaAgente(null);
+      perfilMunicipioContexto = montado.perfilMunicipioContexto;
+      perfilMunicipioResumo = montado.perfilMunicipioResumo;
     }
   }
 
@@ -512,8 +535,8 @@ router.get(
         "role",
         "memorySessionKey (userId:sessionId — Postgres Chat Memory no n8n)",
         "perfilMunicipioSnapshot (nome, uf, codigoIbge, atualizadoEm — null se sem cadastro)",
-        "perfilMunicipioContexto (texto longo; igual formatMunicipioPerfilForPrompt do /assistente/chat)",
-        "perfilMunicipioResumo (uma linha; util para logs ou cabecalho curto no n8n)",
+        "perfilMunicipioContexto (texto longo; painel CADU vw_vig_* e RMA recalculados nesta requisicao — alinhado ao dashboard Vigilancia)",
+        "perfilMunicipioResumo (resumo curto; mesmos totais ao vivo que o contexto)",
         "rmaRecorteGuiaParaIA (texto; so quando recorteRma.tipo e rma-cras — estrutura + legenda a1…d8 do banco)"
       ],
       n8nHint:

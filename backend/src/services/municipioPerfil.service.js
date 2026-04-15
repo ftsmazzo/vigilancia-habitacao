@@ -1,4 +1,10 @@
 import { prisma } from "../utils/prisma.js";
+import {
+  obterPainelCadVigilanciaCompleto,
+  resumoRmaCrasPorIbge,
+  resumoRmaCreasPorIbge,
+  resumoRmaPopPorIbge
+} from "./comparativoMunicipio.service.js";
 
 /**
  * Municipio ativo: MUNICIPIO_IBGE_CODIGO no .env; senao o primeiro cadastro (mais recente).
@@ -17,7 +23,14 @@ export async function getMunicipioPerfilAtivo() {
   });
 }
 
-export function resumoMunicipioParaRag(perfil) {
+/**
+ * @param {object|null} perfil
+ * @param {{
+ *   municipalCardsFromPainel?: object|null,
+ *   rmaCrasTotais?: object|null
+ * }} [opts] — municipalCards: vw_vig ao vivo; rmaCrasTotais: ultimo mes no banco (alinha ao agente)
+ */
+export function resumoMunicipioParaRag(perfil, opts = {}) {
   if (!perfil) return "";
   const d =
     perfil.dadosJson && typeof perfil.dadosJson === "object"
@@ -37,6 +50,9 @@ export function resumoMunicipioParaRag(perfil) {
       `Populacao referencia: ${d.populacao}${d.anoPopulacao ? ` (${d.anoPopulacao})` : ""}.`
     );
   }
+  const liveCards = opts.municipalCardsFromPainel;
+  let linhaPainelMunicipalIncluida = false;
+
   const ibge = perfil.ibgeCacheJson;
   if (ibge && typeof ibge === "object") {
     const loc = ibge.localidade;
@@ -68,25 +84,96 @@ export function resumoMunicipioParaRag(perfil) {
         `CadUnico (import): ${painel.caduImport.totalFamilias} familias.`
       );
     }
-    if (painel?.municipal?.cards?.totalPessoas != null) {
+    if (liveCards && typeof liveCards === "object" && liveCards.totalPessoas != null) {
       partes.push(
-        `Painel vigilancia municipal: ${painel.municipal.cards.totalPessoas} pessoas.`
+        `Painel vigilancia municipal (vw_vig_* — nesta requisicao, mesmo criterio do dashboard): ${liveCards.totalPessoas} pessoas, ${liveCards.totalFamilias ?? "—"} familias.`
       );
+      linhaPainelMunicipalIncluida = true;
+    } else if (painel?.municipal?.cards?.totalPessoas != null) {
+      partes.push(
+        `Painel vigilancia municipal (cache ultima sync IBGE — pode divergir do dashboard): ${painel.municipal.cards.totalPessoas} pessoas.`
+      );
+      linhaPainelMunicipalIncluida = true;
     }
-    if (comp?.rmaCras?.totaisMunicipio?.c1 != null) {
-      partes.push(`RMA CRAS C.1 (ultimo mes sistema): ${comp.rmaCras.totaisMunicipio.c1}.`);
+    const rmaC1AoVivo = opts.rmaCrasTotais?.c1;
+    if (rmaC1AoVivo != null) {
+      partes.push(`RMA CRAS C.1 (ultimo mes no banco, nesta requisicao): ${rmaC1AoVivo}.`);
+    } else if (comp?.rmaCras?.totaisMunicipio?.c1 != null) {
+      partes.push(`RMA CRAS C.1 (cache IBGE): ${comp.rmaCras.totaisMunicipio.c1}.`);
     }
   }
+
+  if (
+    !linhaPainelMunicipalIncluida &&
+    liveCards &&
+    typeof liveCards === "object" &&
+    liveCards.totalPessoas != null
+  ) {
+    partes.push(
+      `Painel vigilancia municipal (vw_vig_* — nesta requisicao, mesmo criterio do dashboard): ${liveCards.totalPessoas} pessoas, ${liveCards.totalFamilias ?? "—"} familias.`
+    );
+  }
+
+  if (
+    (!ibge || typeof ibge !== "object") &&
+    opts.rmaCrasTotais?.c1 != null
+  ) {
+    partes.push(
+      `RMA CRAS C.1 (ultimo mes no banco, nesta requisicao): ${opts.rmaCrasTotais.c1}.`
+    );
+  }
+
   return partes.join(" ");
+}
+
+/** Reduz painel completo (obterPainelCadVigilanciaCompleto) ao formato enviado ao modelo. */
+function painelCadVigilanciaResumoParaPrompt(painel) {
+  if (!painel || typeof painel !== "object") return undefined;
+  return {
+    caduImport: painel.caduImport ?? null,
+    bpcImport: painel.bpcImport ?? null,
+    aviso: painel.aviso ?? null,
+    municipalCards: painel.municipal?.cards ?? painel.municipalCards ?? null,
+    porCrasResumo: Array.isArray(painel.porCras)
+      ? painel.porCras.map((x) => ({
+          codigo: x.codigo,
+          nome: x.nome,
+          totalPessoas: x.cards?.totalPessoas,
+          totalFamilias: x.cards?.totalFamilias
+        }))
+      : painel.porCrasResumo
+  };
+}
+
+function mergeComparativoIbge(ibgeComparativo, options) {
+  const base =
+    ibgeComparativo && typeof ibgeComparativo === "object"
+      ? { ...ibgeComparativo }
+      : {};
+  if (options.painelCadVigilancia != null) {
+    base.painelCadVigilancia = options.painelCadVigilancia;
+  }
+  if (options.rmaComparativo && typeof options.rmaComparativo === "object") {
+    const rc = options.rmaComparativo;
+    if (Object.prototype.hasOwnProperty.call(rc, "rmaCras")) base.rmaCras = rc.rmaCras;
+    if (Object.prototype.hasOwnProperty.call(rc, "rmaCreas")) base.rmaCreas = rc.rmaCreas;
+    if (Object.prototype.hasOwnProperty.call(rc, "rmaPop")) base.rmaPop = rc.rmaPop;
+  }
+  return base;
 }
 
 /**
  * Texto para o prompt principal do assistente (sem truncar demais o texto livre).
+ * @param {object|null} perfil
+ * @param {{ painelCadVigilancia?: object, rmaComparativo?: { rmaCras?: any, rmaCreas?: any, rmaPop?: any } }} [options]
+ *        Quando informado, substitui snapshot do ibgeCacheJson (alinha ao painel Vigilancia / RMA atual).
  */
-export function formatMunicipioPerfilForPrompt(perfil) {
+export function formatMunicipioPerfilForPrompt(perfil, options = {}) {
   if (!perfil) {
     return "(Nenhum perfil municipal configurado no sistema. Evite supor dados locais especificos; use apenas o que vier no pedido, no RMA e na base normativa.)";
   }
+  const injectPainel = options.painelCadVigilancia != null;
+  const injectRma = options.rmaComparativo != null;
   const d =
     perfil.dadosJson && typeof perfil.dadosJson === "object"
       ? perfil.dadosJson
@@ -97,57 +184,57 @@ export function formatMunicipioPerfilForPrompt(perfil) {
     `Identificacao: ${perfil.nome} / ${perfil.uf} — IBGE ${perfil.codigoIbge}.`
   );
 
-  if (perfil.ibgeCacheJson && typeof perfil.ibgeCacheJson === "object") {
-    const ibge = perfil.ibgeCacheJson;
+  const ibge =
+    perfil.ibgeCacheJson && typeof perfil.ibgeCacheJson === "object"
+      ? perfil.ibgeCacheJson
+      : null;
+
+  if (ibge) {
     if (ibge.textoContextoAssistente && String(ibge.textoContextoAssistente).trim()) {
       blocos.push(
         `### Contexto territorial (IBGE + dados locais — obtido pela sincronizacao)\n${String(ibge.textoContextoAssistente).trim().slice(0, 24000)}`
       );
     }
-    if (
-      (ibge.versao === 2 ||
-        ibge.versao === 3 ||
-        ibge.versao === 4) &&
-      ibge.localidade
-    ) {
+
+    const temIbgeEstruturado =
+      (ibge.versao === 2 || ibge.versao === 3 || ibge.versao === 4) &&
+      ibge.localidade;
+    const deveIncluirComparativo =
+      temIbgeEstruturado || injectPainel || injectRma;
+
+    if (deveIncluirComparativo) {
       const resumoDiv = ibge.divisoesTerritoriais;
+      const compMerged = mergeComparativoIbge(ibge.comparativoCadRmaIbge, options);
       const extra = {
-        localidade: ibge.localidade,
-        populacaoCenso2022: ibge.populacaoCenso2022,
-        indicadoresCidades: ibge.indicadoresCidades,
-        quantidadeDistritos: resumoDiv?.quantidadeDistritos,
-        quantidadeSubdistritos: resumoDiv?.quantidadeSubdistritos,
-        amostraDistritos: Array.isArray(resumoDiv?.distritos)
-          ? resumoDiv.distritos.slice(0, 25).map((x) => x.nome)
-          : undefined,
-        comparativoCadRmaIbge: ibge.comparativoCadRmaIbge
+        ...(temIbgeEstruturado
           ? {
-              painelCadVigilancia: ibge.comparativoCadRmaIbge.painelCadVigilancia
-                ? {
-                    caduImport: ibge.comparativoCadRmaIbge.painelCadVigilancia.caduImport,
-                    bpcImport: ibge.comparativoCadRmaIbge.painelCadVigilancia.bpcImport,
-                    aviso: ibge.comparativoCadRmaIbge.painelCadVigilancia.aviso,
-                    municipalCards:
-                      ibge.comparativoCadRmaIbge.painelCadVigilancia.municipal?.cards,
-                    porCrasResumo: Array.isArray(
-                      ibge.comparativoCadRmaIbge.painelCadVigilancia.porCras
-                    )
-                      ? ibge.comparativoCadRmaIbge.painelCadVigilancia.porCras.map(
-                          (x) => ({
-                            codigo: x.codigo,
-                            nome: x.nome,
-                            totalPessoas: x.cards?.totalPessoas,
-                            totalFamilias: x.cards?.totalFamilias
-                          })
-                        )
-                      : undefined
-                  }
-                : undefined,
-              rmaCras: ibge.comparativoCadRmaIbge.rmaCras,
-              rmaCreas: ibge.comparativoCadRmaIbge.rmaCreas,
-              rmaPop: ibge.comparativoCadRmaIbge.rmaPop
+              localidade: ibge.localidade,
+              populacaoCenso2022: ibge.populacaoCenso2022,
+              indicadoresCidades: ibge.indicadoresCidades,
+              quantidadeDistritos: resumoDiv?.quantidadeDistritos,
+              quantidadeSubdistritos: resumoDiv?.quantidadeSubdistritos,
+              amostraDistritos: Array.isArray(resumoDiv?.distritos)
+                ? resumoDiv.distritos.slice(0, 25).map((x) => x.nome)
+                : undefined
             }
-          : undefined
+          : {
+              notaEstruturado:
+                "Bloco IBGE estruturado (versao/localidade) incompleto; comparativo CADU/RMA abaixo reflete a requisicao atual quando indicado em _fontePainelRma."
+            }),
+        comparativoCadRmaIbge: {
+          painelCadVigilancia: painelCadVigilanciaResumoParaPrompt(
+            compMerged.painelCadVigilancia
+          ),
+          rmaCras: compMerged.rmaCras,
+          rmaCreas: compMerged.rmaCreas,
+          rmaPop: compMerged.rmaPop,
+          _escopoPainelCadu:
+            "municipio inteiro (unidadeTerritorial=TODOS, sem filtro de bairros) — igual ao carregamento inicial do painel Vigilancia; se o usuario filtrar CRAS ou bairro no dashboard, os numeros la podem diferir.",
+          _fontePainelRma:
+            injectPainel || injectRma
+              ? "ao_vivo_mesma_api_do_dashboard_vw_vig"
+              : "snapshot_ibge_cache_pode_divergir"
+        }
       };
       blocos.push(
         `Dados estruturados IBGE + comparativo (complemento):\n${JSON.stringify(extra, null, 2).slice(0, 14000)}`
@@ -157,6 +244,25 @@ export function formatMunicipioPerfilForPrompt(perfil) {
         `Dados de referencia IBGE (cache legado):\n${JSON.stringify(ibge, null, 2).slice(0, 4000)}`
       );
     }
+  } else if (injectPainel || injectRma) {
+    const compMerged = mergeComparativoIbge(null, options);
+    const extra = {
+      nota: "Perfil sem ibgeCacheJson; apenas painel CADU e RMA nesta resposta.",
+      comparativoCadRmaIbge: {
+        painelCadVigilancia: painelCadVigilanciaResumoParaPrompt(
+          compMerged.painelCadVigilancia
+        ),
+        rmaCras: compMerged.rmaCras,
+        rmaCreas: compMerged.rmaCreas,
+        rmaPop: compMerged.rmaPop,
+        _escopoPainelCadu:
+          "municipio inteiro (unidadeTerritorial=TODOS, sem filtro de bairros) — igual ao carregamento inicial do painel Vigilancia.",
+        _fontePainelRma: "ao_vivo_mesma_api_do_dashboard_vw_vig"
+      }
+    };
+    blocos.push(
+      `Comparativo CADU / RMA (ao vivo):\n${JSON.stringify(extra, null, 2).slice(0, 14000)}`
+    );
   }
 
   if (perfil.textoMunicipio?.trim()) {
@@ -174,4 +280,34 @@ export function formatMunicipioPerfilForPrompt(perfil) {
   }
 
   return blocos.join("\n\n").slice(0, 36000);
+}
+
+/**
+ * Carrega painel Vigilancia (vw_vig_*) e ultimo mes RMA no banco — mesma base numerica do dashboard.
+ */
+export async function formatMunicipioPerfilParaAgente(perfil) {
+  if (!perfil) {
+    return {
+      perfilMunicipioContexto: formatMunicipioPerfilForPrompt(null),
+      perfilMunicipioResumo: resumoMunicipioParaRag(null)
+    };
+  }
+  const codigoIbge = perfil.codigoIbge;
+  const [painelCadVigilancia, rmaCras, rmaCreas, rmaPop] = await Promise.all([
+    obterPainelCadVigilanciaCompleto(),
+    resumoRmaCrasPorIbge(codigoIbge),
+    resumoRmaCreasPorIbge(codigoIbge),
+    resumoRmaPopPorIbge(codigoIbge)
+  ]);
+  const opts = {
+    painelCadVigilancia,
+    rmaComparativo: { rmaCras, rmaCreas, rmaPop }
+  };
+  return {
+    perfilMunicipioContexto: formatMunicipioPerfilForPrompt(perfil, opts),
+    perfilMunicipioResumo: resumoMunicipioParaRag(perfil, {
+      municipalCardsFromPainel: painelCadVigilancia?.municipal?.cards,
+      rmaCrasTotais: rmaCras?.totaisMunicipio ?? null
+    })
+  };
 }

@@ -60,7 +60,9 @@ router.get(
     return res.json({
       perfil,
       municipioIbgeEnv: codigoEnv,
-      promptPreview: perfil ? formatMunicipioPerfilForPrompt(perfil).slice(0, 500) : null
+      promptPreview: perfil ? formatMunicipioPerfilForPrompt(perfil).slice(0, 500) : null,
+      assistentePainelNota:
+        "Assistente e CaduIA recalculam a cada mensagem o painel CADU (vw_vig_*, mesmo criterio do dashboard Vigilancia) e o ultimo mes RMA; esta previa mostra so o cache IBGE."
     });
   }
 );
