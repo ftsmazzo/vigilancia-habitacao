@@ -356,8 +356,12 @@ ${message}`;
   }
 );
 
-/** Contrato do payload enviado ao webhook n8n. Memory Postgres: use memorySessionKey no sessionKey. */
-function buildAgenteN8nPayload(req) {
+/**
+ * Payload enviado ao webhook n8n.
+ * Memory Postgres: sessionKey = body.memorySessionKey.
+ * Contexto municipal: body.perfilMunicipioContexto (mesmo texto do assistente interno /chat).
+ */
+async function buildAgenteN8nPayload(req) {
   const mensagem = String(req.body?.mensagem ?? req.body?.message ?? "").trim();
   const sessionIdRaw = req.body?.sessionId;
   const sessionId =
@@ -375,6 +379,31 @@ function buildAgenteN8nPayload(req) {
       : undefined;
 
   const contextoPainel = req.body?.contextoPainel;
+  const omitirPerfil =
+    req.body?.omitirPerfilMunicipio === true ||
+    req.body?.omitirPerfilMunicipio === "true";
+
+  let perfilMunicipioSnapshot = null;
+  let perfilMunicipioContexto = "";
+  let perfilMunicipioResumo = "";
+
+  if (!omitirPerfil) {
+    const perfil = await getMunicipioPerfilAtivo();
+    if (perfil) {
+      perfilMunicipioSnapshot = {
+        id: perfil.id,
+        nome: perfil.nome,
+        uf: perfil.uf,
+        codigoIbge: perfil.codigoIbge,
+        atualizadoEm: perfil.atualizadoEm?.toISOString?.() ?? null
+      };
+      perfilMunicipioContexto = formatMunicipioPerfilForPrompt(perfil);
+      perfilMunicipioResumo = resumoMunicipioParaRag(perfil);
+    } else {
+      perfilMunicipioContexto = formatMunicipioPerfilForPrompt(null);
+      perfilMunicipioResumo = resumoMunicipioParaRag(null);
+    }
+  }
 
   return {
     mensagem,
@@ -383,6 +412,13 @@ function buildAgenteN8nPayload(req) {
     userId,
     userEmail: req.user?.email ?? null,
     role: req.user?.role ?? null,
+    ...(!omitirPerfil
+      ? {
+          perfilMunicipioSnapshot,
+          perfilMunicipioContexto,
+          perfilMunicipioResumo
+        }
+      : {}),
     ...(metadata ? { metadata } : {}),
     ...(contextoPainel !== undefined ? { contextoPainel } : {})
   };
@@ -404,14 +440,20 @@ router.get(
         "mensagem (obrigatorio)",
         "sessionId (opcional; UUID v4 se vazio — reutilize o mesmo para multi-turn)",
         "metadata (opcional, objeto)",
-        "contextoPainel (opcional; mesmo formato do assistente interno)"
+        "contextoPainel (opcional; mesmo formato do assistente interno)",
+        "omitirPerfilMunicipio (opcional; true = payload menor, sem contexto do municipio)"
       ],
       injectedByServer: [
         "userId",
         "userEmail",
         "role",
-        "memorySessionKey (userId:sessionId — usar no Postgres Chat Memory do n8n)"
-      ]
+        "memorySessionKey (userId:sessionId — Postgres Chat Memory no n8n)",
+        "perfilMunicipioSnapshot (nome, uf, codigoIbge, atualizadoEm — null se sem cadastro)",
+        "perfilMunicipioContexto (texto longo; igual formatMunicipioPerfilForPrompt do /assistente/chat)",
+        "perfilMunicipioResumo (uma linha; util para logs ou cabecalho curto no n8n)"
+      ],
+      n8nHint:
+        "No Supervisor, injeta no user message ou system: o bloco perfilMunicipioContexto + mensagem + contextoPainel. Numeros cadastrais finos continuam no AgenteSQL."
     });
   }
 );
@@ -431,7 +473,7 @@ router.post(
       });
     }
 
-    const payload = buildAgenteN8nPayload(req);
+    const payload = await buildAgenteN8nPayload(req);
     if (!payload.mensagem) {
       return res.status(400).json({
         error: true,

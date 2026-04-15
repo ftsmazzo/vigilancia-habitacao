@@ -6,6 +6,7 @@ export function AgenteN8nLabPage({ usuario }) {
   const [mensagem, setMensagem] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [metadataJson, setMetadataJson] = useState("{}");
+  const [omitirPerfil, setOmitirPerfil] = useState(false);
   const [incluirContexto, setIncluirContexto] = useState(false);
   const [contextoJson, setContextoJson] = useState(
     '{\n  "notasLivres": "Teste de laboratorio"\n}'
@@ -68,6 +69,7 @@ export function AgenteN8nLabPage({ usuario }) {
     const body = {
       mensagem: msg,
       ...(sessionId.trim() ? { sessionId: sessionId.trim() } : {}),
+      ...(omitirPerfil ? { omitirPerfilMunicipio: true } : {}),
       ...(metadata != null ? { metadata } : {}),
       ...(contextoPainel !== undefined ? { contextoPainel } : {})
     };
@@ -100,8 +102,14 @@ export function AgenteN8nLabPage({ usuario }) {
         <p className="muted small-margin-b">
           Simula o que o sistema enviará ao webhook do n8n. O backend monta o corpo, acrescenta{" "}
           <code className="inline-code">userId</code>, <code className="inline-code">userEmail</code>{" "}
-          e <code className="inline-code">role</code> a partir do JWT — igual a uma rota real no
-          futuro.
+          e <code className="inline-code">role</code> a partir do JWT, e inclui{" "}
+          <strong>perfil municipal completo</strong> (<code className="inline-code">
+            perfilMunicipioContexto
+          </code>
+          ) — o mesmo texto usado no assistente interno em <code className="inline-code">
+            /assistente/chat
+          </code>
+          .
         </p>
         {usuario?.email ? (
           <p className="muted small-margin-b">
@@ -160,6 +168,15 @@ export function AgenteN8nLabPage({ usuario }) {
               disabled={enviando || !webhookOk}
               style={{ minHeight: 72, fontFamily: "monospace", fontSize: "0.88rem" }}
             />
+          </label>
+          <label className="checkbox-row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={omitirPerfil}
+              onChange={(e) => setOmitirPerfil(e.target.checked)}
+              disabled={enviando || !webhookOk}
+            />
+            Omitir perfil do municipio no payload (teste enxuto; producao deve deixar desmarcado)
           </label>
           <label className="checkbox-row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
